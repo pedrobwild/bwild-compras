@@ -103,3 +103,62 @@ function Usuarios() {
     </div>
   );
 }
+
+function NovoUsuarioDialog({ onCreated }: { onCreated: () => void }) {
+  const [open, setOpen] = useState(false);
+  const form = useForm<z.infer<typeof novoUsuarioSchema>>({ resolver: zodResolver(novoUsuarioSchema) });
+
+  const submit = form.handleSubmit(async (v) => {
+    const { data, error } = await signupClient.auth.signUp({
+      email: v.email,
+      password: v.password,
+      options: { data: { nome: v.nome }, emailRedirectTo: window.location.origin },
+    });
+    if (error) {
+      if (/already|registered|exists/i.test(error.message)) return toast.error("Já existe um usuário com este e-mail.");
+      return toast.error(error.message);
+    }
+    toast.success(
+      data.session
+        ? `Usuário ${v.nome} criado. Ele já pode entrar.`
+        : `Usuário ${v.nome} criado. Enviamos um link de confirmação para o e-mail dele.`,
+    );
+    form.reset();
+    setOpen(false);
+    onCreated();
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button>Novo usuário</Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Criar usuário</DialogTitle>
+        </DialogHeader>
+        <form className="space-y-4" onSubmit={submit}>
+          <div className="space-y-1.5">
+            <Label htmlFor="nu-nome">Nome</Label>
+            <Input id="nu-nome" {...form.register("nome")} />
+            {form.formState.errors.nome && <p className="text-xs text-destructive">{form.formState.errors.nome.message}</p>}
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="nu-email">E-mail</Label>
+            <Input id="nu-email" type="email" autoComplete="off" {...form.register("email")} />
+            {form.formState.errors.email && <p className="text-xs text-destructive">{form.formState.errors.email.message}</p>}
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="nu-senha">Senha temporária</Label>
+            <Input id="nu-senha" type="password" autoComplete="new-password" {...form.register("password")} />
+            {form.formState.errors.password && <p className="text-xs text-destructive">{form.formState.errors.password.message}</p>}
+          </div>
+          <Button className="w-full" disabled={form.formState.isSubmitting}>Criar usuário</Button>
+          <p className="text-xs text-muted-foreground">
+            O usuário entra como solicitante. Depois libere Compras ou Admin na lista. Sua sessão não é alterada.
+          </p>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
