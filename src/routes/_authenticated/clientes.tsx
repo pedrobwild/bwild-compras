@@ -1,10 +1,10 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Building2, ChevronDown, ChevronRight, FileUp, Pencil, Plus, Trash2 } from "lucide-react";
+import { Building2, FileUp, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, useRole } from "@/hooks/useAuth";
@@ -16,55 +16,49 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EmptyState, ErrorState, LoadingList } from "@/components/States";
-import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/clientes")({
   head: () => ({
     meta: [
-      { title: "Clientes e obras — Bwild Compras" },
-      { name: "description", content: "Cadastro de clientes e obras das reformas." },
-      { property: "og:title", content: "Clientes e obras — Bwild Compras" },
-      { property: "og:description", content: "Cadastro de clientes e obras das reformas." },
+      { title: "Clientes / obras — Bwild Compras" },
+      { name: "description", content: "Cadastro de clientes/obras das reformas." },
+      { property: "og:title", content: "Clientes / obras — Bwild Compras" },
+      { property: "og:description", content: "Cadastro de clientes/obras das reformas." },
     ],
   }),
   component: ClientesPage,
 });
 
-type Cliente = {
+type ClienteObra = {
   id: string;
   nome: string;
+  empreendimento: string | null;
+  unidade: string | null;
+  endereco: string | null;
   contato: string | null;
   telefone: string | null;
   email: string | null;
   observacao: string | null;
 };
 
-type Obra = {
-  id: string;
-  cliente_id: string;
-  empreendimento: string;
-  unidade: string | null;
-  endereco: string | null;
-};
-
-const clienteSchema = z.object({
-  nome: z.string().min(2, "Informe o nome").max(120),
+const schema = z.object({
+  nome: z.string().trim().min(2, "Informe o cliente").max(120),
+  empreendimento: z.string().max(120).optional(),
+  unidade: z.string().max(60).optional(),
+  endereco: z.string().max(200).optional(),
   contato: z.string().max(120).optional(),
   telefone: z.string().max(30).optional(),
   email: z.string().email("E-mail inválido").max(120).optional().or(z.literal("")),
   observacao: z.string().max(500).optional(),
 });
-type ClienteForm = z.infer<typeof clienteSchema>;
+type Form = z.infer<typeof schema>;
 
-const obraSchema = z.object({
-  empreendimento: z.string().min(2, "Informe o empreendimento").max(120),
-  unidade: z.string().max(60).optional(),
-  endereco: z.string().max(200).optional(),
-});
-type ObraForm = z.infer<typeof obraSchema>;
-
-const isMissingTable = (e: unknown) =>
-  typeof e === "object" && e !== null && "code" in e && (e as { code?: string }).code === "42P01";
+const TABELA = "clientes_obras";
+const tabelaFalta = (e: unknown) => {
+  const x = e as { code?: string; message?: string } | null;
+  return x?.code === "42P01" || x?.code === "PGRST205" || /schema cache|does not exist/i.test(x?.message ?? "");
+};
+const nomeObra = (c: ClienteObra) => [c.empreendimento, c.unidade].filter(Boolean).join(" — ");
 
 function ClientesPage() {
   const { isCompras } = useRole();
@@ -72,29 +66,26 @@ function ClientesPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [busca, setBusca] = useState("");
-  const [abertos, setAbertos] = useState<Record<string, boolean>>({});
-  const [clienteDialog, setClienteDialog] = useState<{ open: boolean; cliente?: Cliente }>({ open: false });
-  const [obraDialog, setObraDialog] = useState<{ open: boolean; clienteId?: string; obra?: Obra }>({ open: false });
-  const [alvo, setAlvo] = useState<{ cliente: Cliente; obra: Obra; file: File } | null>(null);
+  const [dialog, setDialog] = useState<{ open: boolean; item?: ClienteObra }>({ open: false });
+  const [alvo, setAlvo] = useState<{ item: ClienteObra; file: File } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const alvoRef = useRef<{ cliente: Cliente; obra: Obra } | null>(null);
+  const alvoRef = useRef<ClienteObra | null>(null);
 
-  // Anexar projeto executivo direto na obra: lê o PDF, valida e cria a solicitação com os itens
   const leitura = useLeituraProjeto(async (v: ValidacaoAplicada) => {
-    const ctx = alvoRef.current;
+    const c = alvoRef.current;
     const file = alvo?.file;
-    if (!ctx || !file || !user) return;
-    const emp = v.obra.empreendimento.trim() || ctx.obra.empreendimento;
-    const un = v.obra.unidade.trim() || ctx.obra.unidade || "";
+    if (!c || !file || !user) return;
+    const emp = v.obra.empreendimento.trim() || c.empreendimento || "";
+    const un = v.obra.unidade.trim() || c.unidade || "";
     const avisos = v.avisos.length ? `Avisos do projeto:\n${v.avisos.map((a) => `- ${a}`).join("\n")}` : "";
     const { data: sol, error: eSol } = await supabase
       .from("solicitacoes")
       .insert({
-        cliente: v.obra.cliente.trim() || ctx.cliente.nome,
-        empreendimento: emp,
+        cliente: v.obra.cliente.trim() || c.nome,
+        empreendimento: emp || null,
         unidade: un || null,
-        endereco_obra: v.obra.endereco.trim() || ctx.obra.endereco || null,
-        titulo: `Compras projeto executivo — ${emp}${un ? ` ${un}` : ""}`.slice(0, 200),
+        endereco_obra: v.obra.endereco.trim() || c.endereco || null,
+        titulo: `Compras projeto executivo — ${emp || c.nome}${un ? ` ${un}` : ""}`.slice(0, 200),
         descricao: avisos || null,
         prioridade: "normal",
         area_m2: v.area_m2,
@@ -123,311 +114,121 @@ function ClientesPage() {
     navigate({ to: "/solicitacoes/$id", params: { id: sol.id } });
   });
 
-  const anexarExecutivo = (cliente: Cliente, obra: Obra) => {
-    alvoRef.current = { cliente, obra };
-    fileRef.current?.click();
-  };
-
-  const clientesQ = useQuery({
+  const q = useQuery({
     queryKey: ["clientes"],
+    retry: (n, e) => !tabelaFalta(e) && n < 2,
     queryFn: async () => {
-      const { data, error } = await supabase.from("clientes").select("*").order("nome");
+      const { data, error } = await supabase.from(TABELA).select("*").order("nome");
       if (error) throw error;
-      return (data ?? []) as Cliente[];
+      return (data ?? []) as ClienteObra[];
     },
   });
 
-  const obrasQ = useQuery({
-    queryKey: ["obras"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("obras").select("*").order("empreendimento");
-      if (error) throw error;
-      return (data ?? []) as Obra[];
-    },
-    enabled: clientesQ.isSuccess,
-  });
-
-  const invalidate = () => {
-    qc.invalidateQueries({ queryKey: ["clientes"] });
-    qc.invalidateQueries({ queryKey: ["obras"] });
-  };
-
-  const salvarCliente = useMutation({
-    mutationFn: async (v: ClienteForm & { id?: string }) => {
+  const salvar = useMutation({
+    mutationFn: async (v: Form & { id?: string }) => {
+      const t = (s?: string) => s?.trim() || null;
       const payload = {
-        nome: v.nome.trim(),
-        contato: v.contato?.trim() || null,
-        telefone: v.telefone?.trim() || null,
-        email: v.email?.trim() || null,
-        observacao: v.observacao?.trim() || null,
+        nome: v.nome.trim(), empreendimento: t(v.empreendimento), unidade: t(v.unidade), endereco: t(v.endereco),
+        contato: t(v.contato), telefone: t(v.telefone), email: t(v.email), observacao: t(v.observacao),
       };
       const { error } = v.id
-        ? await supabase.from("clientes").update(payload).eq("id", v.id)
-        : await supabase.from("clientes").insert(payload);
+        ? await supabase.from(TABELA).update(payload).eq("id", v.id)
+        : await supabase.from(TABELA).insert(payload);
       if (error) throw error;
     },
-    onSuccess: () => {
-      toast.success("Cliente salvo");
-      setClienteDialog({ open: false });
-      invalidate();
-    },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Não foi possível salvar o cliente"),
+    onSuccess: () => { toast.success("Cliente/obra salvo"); setDialog({ open: false }); qc.invalidateQueries({ queryKey: ["clientes"] }); },
+    onError: (e) => toast.error("Não foi possível salvar: " + ((e as { message?: string }).message ?? "erro desconhecido")),
   });
 
-  const excluirCliente = useMutation({
+  const excluir = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("clientes").delete().eq("id", id);
+      const { error } = await supabase.from(TABELA).delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
-      toast.success("Cliente excluído");
-      invalidate();
-    },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Não foi possível excluir o cliente"),
+    onSuccess: () => { toast.success("Cliente/obra excluído"); qc.invalidateQueries({ queryKey: ["clientes"] }); },
+    onError: (e) => toast.error("Não foi possível excluir: " + ((e as { message?: string }).message ?? "erro desconhecido")),
   });
 
-  const salvarObra = useMutation({
-    mutationFn: async (v: ObraForm & { id?: string; cliente_id: string }) => {
-      const payload = {
-        cliente_id: v.cliente_id,
-        empreendimento: v.empreendimento.trim(),
-        unidade: v.unidade?.trim() || null,
-        endereco: v.endereco?.trim() || null,
-      };
-      const { error } = v.id
-        ? await supabase.from("obras").update(payload).eq("id", v.id)
-        : await supabase.from("obras").insert(payload);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Obra salva");
-      setObraDialog({ open: false });
-      invalidate();
-    },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Não foi possível salvar a obra"),
-  });
-
-  const excluirObra = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("obras").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Obra excluída");
-      invalidate();
-    },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Não foi possível excluir a obra"),
-  });
-
-  if (clientesQ.isLoading) return <LoadingList />;
-  if (clientesQ.isError) {
-    if (isMissingTable(clientesQ.error)) {
+  if (q.isLoading) return <LoadingList />;
+  if (q.isError) {
+    if (tabelaFalta(q.error)) {
       return (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-6 text-sm text-amber-900">
-          <p className="font-semibold">Cadastro de clientes ainda não ativado no banco</p>
-          <p className="mt-2">
-            Rode o script <code className="rounded bg-amber-100 px-1">clientes_obras.sql</code> no SQL Editor do
-            Supabase para criar as tabelas de clientes e obras. Depois disso esta tela passa a funcionar.
+        <div className="rounded-lg border border-status-cotacao/40 bg-status-cotacao/10 p-6 text-sm">
+          <p className="font-semibold">Cadastro de clientes/obras ainda não ativado no banco</p>
+          <p className="mt-2 text-muted-foreground">
+            Rode o script <strong>clientes_obras.sql</strong> no SQL Editor do Supabase. Depois disso esta tela passa a funcionar.
           </p>
         </div>
       );
     }
-    return <ErrorState message="Não foi possível carregar os clientes" />;
+    return <ErrorState message={"Não foi possível carregar os clientes/obras: " + ((q.error as { message?: string }).message ?? "")} />;
   }
 
-  const clientes = clientesQ.data ?? [];
-  const obras = obrasQ.data ?? [];
-  const obrasPorCliente = new Map<string, Obra[]>();
-  for (const o of obras) {
-    const list = obrasPorCliente.get(o.cliente_id) ?? [];
-    list.push(o);
-    obrasPorCliente.set(o.cliente_id, list);
-  }
-
+  const lista = q.data ?? [];
   const termo = busca.trim().toLowerCase();
   const filtrados = termo
-    ? clientes.filter(
-        (c) =>
-          c.nome.toLowerCase().includes(termo) ||
-          (obrasPorCliente.get(c.id) ?? []).some(
-            (o) =>
-              o.empreendimento.toLowerCase().includes(termo) ||
-              (o.unidade ?? "").toLowerCase().includes(termo),
-          ),
-      )
-    : clientes;
+    ? lista.filter((c) => [c.nome, c.empreendimento, c.unidade, c.endereco].some((x) => (x ?? "").toLowerCase().includes(termo)))
+    : lista;
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Clientes e obras</h1>
-          <p className="text-sm text-muted-foreground">Cadastro dos clientes e dos empreendimentos/unidades.</p>
+          <h1 className="text-xl font-semibold">Clientes / obras</h1>
+          <p className="text-sm text-muted-foreground">Cada cadastro é um cliente com a sua obra (empreendimento e unidade).</p>
         </div>
         {isCompras && (
-          <Button onClick={() => setClienteDialog({ open: true })}>
-            <Plus className="mr-1 h-4 w-4" /> Novo cliente
+          <Button onClick={() => setDialog({ open: true })}>
+            <Plus className="mr-1 h-4 w-4" /> Novo cliente/obra
           </Button>
         )}
       </div>
 
-      <Input
-        placeholder="Buscar por cliente, empreendimento ou unidade…"
-        value={busca}
-        onChange={(e) => setBusca(e.target.value)}
-        className="max-w-md"
-        aria-label="Buscar cliente ou obra"
-      />
+      <Input placeholder="Buscar por cliente, empreendimento, unidade ou endereço…" value={busca} onChange={(e) => setBusca(e.target.value)} className="max-w-md" aria-label="Buscar cliente/obra" />
 
       {filtrados.length === 0 ? (
         <EmptyState
-          title={
-            termo
-              ? "Nenhum cliente encontrado — tente outra busca."
-              : isCompras
-                ? "Nenhum cliente cadastrado — cadastre o primeiro."
-                : "Nenhum cliente cadastrado — aguarde o time de Compras cadastrar."
-          }
+          title={termo ? "Nada encontrado — tente outra busca." : isCompras ? "Nenhum cliente/obra cadastrado — cadastre o primeiro." : "Nenhum cliente/obra cadastrado ainda."}
         />
       ) : (
-        <div className="space-y-2">
-          {filtrados.map((c) => {
-            const lista = obrasPorCliente.get(c.id) ?? [];
-            const aberto = abertos[c.id] ?? false;
-            return (
-              <div key={c.id} className="rounded-lg border bg-card">
-                <div className="flex items-center gap-2 px-4 py-3">
-                  <button
-                    type="button"
-                    onClick={() => setAbertos((s) => ({ ...s, [c.id]: !aberto }))}
-                    className="flex min-h-11 flex-1 items-center gap-2 text-left"
-                    aria-label={aberto ? `Recolher obras de ${c.nome}` : `Ver obras de ${c.nome}`}
-                    aria-expanded={aberto}
-                  >
-                    {aberto ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />}
-                    <span className="font-medium">{c.nome}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {lista.length} {lista.length === 1 ? "obra" : "obras"}
-                    </span>
-                  </button>
-                  {isCompras && (
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        title={`Editar ${c.nome}`}
-                        aria-label={`Editar ${c.nome}`}
-                        onClick={() => setClienteDialog({ open: true, cliente: c })}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        title={`Excluir ${c.nome}`}
-                        aria-label={`Excluir ${c.nome}`}
-                        onClick={() => {
-                          if (window.confirm(`Excluir o cliente "${c.nome}" e todas as suas obras?`))
-                            excluirCliente.mutate(c.id);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-
+        <div className="grid gap-2 md:grid-cols-2">
+          {filtrados.map((c) => (
+            <div key={c.id} className="flex items-start gap-3 rounded-lg border bg-card p-4">
+              <Building2 className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
+              <div className="min-w-0 flex-1">
+                <p className="font-medium">{c.nome}</p>
+                {nomeObra(c) && <p className="text-sm">{nomeObra(c)}</p>}
+                {c.endereco && <p className="text-xs text-muted-foreground">{c.endereco}</p>}
                 {(c.contato || c.telefone || c.email) && (
-                  <p className="px-4 pb-2 text-xs text-muted-foreground">
-                    {[c.contato, c.telefone, c.email].filter(Boolean).join(" · ")}
-                  </p>
-                )}
-
-                {aberto && (
-                  <div className="border-t px-4 py-3">
-                    {lista.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">Nenhuma obra cadastrada.</p>
-                    ) : (
-                      <ul className="space-y-2">
-                        {lista.map((o) => (
-                          <li key={o.id} className="flex items-start justify-between gap-2 rounded-md bg-muted/50 px-3 py-2">
-                            <div className="flex items-start gap-2">
-                              <Building2 className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                              <div>
-                                <p className="text-sm font-medium">
-                                  {o.empreendimento}
-                                  {o.unidade ? ` — ${o.unidade}` : ""}
-                                </p>
-                                {o.endereco && <p className="text-xs text-muted-foreground">{o.endereco}</p>}
-                              </div>
-                            </div>
-                            {isCompras && (
-                              <div className="flex items-center gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  title={`Anexar projeto executivo em ${o.empreendimento} e gerar a lista de compras`}
-                                  aria-label={`Anexar projeto executivo em ${o.empreendimento}`}
-                                  onClick={() => anexarExecutivo(c, o)}
-                                >
-                                  <FileUp className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  title={`Editar obra ${o.empreendimento}`}
-                                  aria-label={`Editar obra ${o.empreendimento}`}
-                                  onClick={() => setObraDialog({ open: true, clienteId: c.id, obra: o })}
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  title={`Excluir obra ${o.empreendimento}`}
-                                  aria-label={`Excluir obra ${o.empreendimento}`}
-                                  onClick={() => {
-                                    if (window.confirm(`Excluir a obra "${o.empreendimento}${o.unidade ? ` — ${o.unidade}` : ""}"?`))
-                                      excluirObra.mutate(o.id);
-                                  }}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                    {isCompras && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="mt-3"
-                        onClick={() => setObraDialog({ open: true, clienteId: c.id })}
-                      >
-                        <Plus className="mr-1 h-4 w-4" /> Nova obra
-                      </Button>
-                    )}
-                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">{[c.contato, c.telefone, c.email].filter(Boolean).join(" · ")}</p>
                 )}
               </div>
-            );
-          })}
+              {isCompras && (
+                <div className="flex shrink-0 items-center gap-1">
+                  <Button variant="ghost" size="icon" title="Anexar projeto executivo e gerar a lista de compras" aria-label={`Anexar projeto executivo de ${c.nome}`}
+                    onClick={() => { alvoRef.current = c; fileRef.current?.click(); }}>
+                    <FileUp className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" title={`Editar ${c.nome}`} aria-label={`Editar ${c.nome}`} onClick={() => setDialog({ open: true, item: c })}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" title={`Excluir ${c.nome}`} aria-label={`Excluir ${c.nome}`}
+                    onClick={() => { if (window.confirm(`Excluir "${c.nome}${nomeObra(c) ? ` — ${nomeObra(c)}` : ""}"?`)) excluir.mutate(c.id); }}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       )}
 
-      <ClienteDialog
-        state={clienteDialog}
-        onClose={() => setClienteDialog({ open: false })}
-        onSave={(v) => salvarCliente.mutate(v)}
-        saving={salvarCliente.isPending}
-      />
-      <ObraDialog
-        state={obraDialog}
-        onClose={() => setObraDialog({ open: false })}
-        onSave={(v) => salvarObra.mutate(v)}
-        saving={salvarObra.isPending}
+      <ClienteObraDialog
+        open={dialog.open}
+        item={dialog.item}
+        onClose={() => setDialog({ open: false })}
+        onSubmit={(v) => salvar.mutate({ ...v, id: dialog.item?.id })}
+        saving={salvar.isPending}
       />
       <input
         ref={fileRef}
@@ -439,7 +240,7 @@ function ClientesPage() {
           const f = e.target.files?.[0];
           e.target.value = "";
           if (!f || !alvoRef.current) return;
-          setAlvo({ ...alvoRef.current, file: f });
+          setAlvo({ item: alvoRef.current, file: f });
           void leitura.ler(f, f.name);
         }}
       />
@@ -448,131 +249,49 @@ function ClientesPage() {
   );
 }
 
-function ClienteDialog({
-  state,
-  onClose,
-  onSave,
-  saving,
-}: {
-  state: { open: boolean; cliente?: Cliente };
-  onClose: () => void;
-  onSave: (v: ClienteForm & { id?: string }) => void;
-  saving: boolean;
+function ClienteObraDialog({ open, item, onClose, onSubmit, saving }: {
+  open: boolean; item?: ClienteObra; onClose: () => void; onSubmit: (v: Form) => void; saving: boolean;
 }) {
-  const form = useForm<ClienteForm>({
-    resolver: zodResolver(clienteSchema),
-    values: {
-      nome: state.cliente?.nome ?? "",
-      contato: state.cliente?.contato ?? "",
-      telefone: state.cliente?.telefone ?? "",
-      email: state.cliente?.email ?? "",
-      observacao: state.cliente?.observacao ?? "",
-    },
-  });
-  const err = form.formState.errors;
-
-  return (
-    <Dialog open={state.open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{state.cliente ? "Editar cliente" : "Novo cliente"}</DialogTitle>
-        </DialogHeader>
-        <form
-          className="space-y-3"
-          onSubmit={form.handleSubmit((v) => onSave({ ...v, id: state.cliente?.id }))}
-        >
-          <div>
-            <Label htmlFor="cli-nome">Nome *</Label>
-            <Input id="cli-nome" {...form.register("nome")} />
-            {err.nome && <p className="mt-1 text-xs text-destructive">{err.nome.message}</p>}
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <Label htmlFor="cli-contato">Contato</Label>
-              <Input id="cli-contato" {...form.register("contato")} />
-            </div>
-            <div>
-              <Label htmlFor="cli-tel">Telefone</Label>
-              <Input id="cli-tel" {...form.register("telefone")} />
-            </div>
-          </div>
-          <div>
-            <Label htmlFor="cli-email">E-mail</Label>
-            <Input id="cli-email" type="email" {...form.register("email")} />
-            {err.email && <p className="mt-1 text-xs text-destructive">{err.email.message}</p>}
-          </div>
-          <div>
-            <Label htmlFor="cli-obs">Observação</Label>
-            <Textarea id="cli-obs" rows={2} {...form.register("observacao")} />
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={saving}>
-              {saving ? "Salvando…" : "Salvar"}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+  const form = useForm<Form>({ resolver: zodResolver(schema) });
+  useEffect(() => {
+    if (!open) return;
+    form.reset({
+      nome: item?.nome ?? "", empreendimento: item?.empreendimento ?? "", unidade: item?.unidade ?? "",
+      endereco: item?.endereco ?? "", contato: item?.contato ?? "", telefone: item?.telefone ?? "",
+      email: item?.email ?? "", observacao: item?.observacao ?? "",
+    });
+  }, [open, item, form]);
+  const e = form.formState.errors;
+  const campo = (name: keyof Form, label: string, extra?: { type?: string; ph?: string }) => (
+    <div className="space-y-1">
+      <Label htmlFor={name}>{label}</Label>
+      <Input id={name} type={extra?.type} placeholder={extra?.ph} {...form.register(name)} />
+      {e[name] && <p className="text-xs text-destructive">{e[name]?.message}</p>}
+    </div>
   );
-}
-
-function ObraDialog({
-  state,
-  onClose,
-  onSave,
-  saving,
-}: {
-  state: { open: boolean; clienteId?: string; obra?: Obra };
-  onClose: () => void;
-  onSave: (v: ObraForm & { id?: string; cliente_id: string }) => void;
-  saving: boolean;
-}) {
-  const form = useForm<ObraForm>({
-    resolver: zodResolver(obraSchema),
-    values: {
-      empreendimento: state.obra?.empreendimento ?? "",
-      unidade: state.obra?.unidade ?? "",
-      endereco: state.obra?.endereco ?? "",
-    },
-  });
-  const err = form.formState.errors;
-
   return (
-    <Dialog open={state.open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{state.obra ? "Editar obra" : "Nova obra"}</DialogTitle>
-        </DialogHeader>
-        <form
-          className={cn("space-y-3")}
-          onSubmit={form.handleSubmit((v) => {
-            if (!state.clienteId) return;
-            onSave({ ...v, id: state.obra?.id, cliente_id: state.clienteId });
-          })}
-        >
-          <div>
-            <Label htmlFor="obra-emp">Empreendimento *</Label>
-            <Input id="obra-emp" {...form.register("empreendimento")} placeholder="Ex.: Ed. Horizonte" />
-            {err.empreendimento && <p className="mt-1 text-xs text-destructive">{err.empreendimento.message}</p>}
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>{item ? "Editar cliente/obra" : "Novo cliente/obra"}</DialogTitle></DialogHeader>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
+          {campo("nome", "Cliente *")}
+          <div className="grid gap-3 sm:grid-cols-2">
+            {campo("empreendimento", "Empreendimento")}
+            {campo("unidade", "Unidade")}
           </div>
-          <div>
-            <Label htmlFor="obra-un">Unidade</Label>
-            <Input id="obra-un" {...form.register("unidade")} placeholder="Ex.: Apto 1204" />
+          {campo("endereco", "Endereço da obra")}
+          <div className="grid gap-3 sm:grid-cols-2">
+            {campo("contato", "Contato")}
+            {campo("telefone", "Telefone")}
           </div>
-          <div>
-            <Label htmlFor="obra-end">Endereço da obra</Label>
-            <Input id="obra-end" {...form.register("endereco")} />
+          {campo("email", "E-mail", { type: "email" })}
+          <div className="space-y-1">
+            <Label htmlFor="observacao">Observação</Label>
+            <Textarea id="observacao" rows={2} {...form.register("observacao")} />
           </div>
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={saving}>
-              {saving ? "Salvando…" : "Salvar"}
-            </Button>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+            <Button type="submit" disabled={saving}>{saving ? "Salvando…" : "Salvar"}</Button>
           </div>
         </form>
       </DialogContent>
