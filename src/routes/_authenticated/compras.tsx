@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { differenceInCalendarDays, parseISO, subDays } from "date-fns";
 import { AlertTriangle, UserX } from "lucide-react";
 import { usePainel } from "@/hooks/usePainel";
@@ -31,13 +33,21 @@ const COLS: { key: Status; dot: string }[] = [
 function Fila() {
   const { isCompras, loading } = useRole();
   const { data, isLoading, error } = usePainel();
+  const [visao, setVisao] = useState<"status" | "cliente">("status");
+  const [cliente, setCliente] = useState("todos");
 
   if (!loading && !isCompras) return <EmptyState title="Esta área é exclusiva da equipe de Compras." />;
   if (isLoading) return <LoadingList />;
   if (error) return <ErrorState message={(error as Error).message} />;
 
   const limite = subDays(new Date(), 30);
-  const rows = (data ?? []).filter((r) => r.status !== "cancelada" && (r.status !== "entregue" || parseISO(r.updated_at) >= limite));
+  const base = (data ?? []).filter((r) => r.status !== "cancelada" && (r.status !== "entregue" || parseISO(r.updated_at) >= limite));
+  const clientes = Array.from(new Set(base.map((r) => r.cliente))).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const rows = cliente === "todos" ? base : base.filter((r) => r.cliente === cliente);
+  const ordenar = (a: PainelRow, b: PainelRow) => Number(b.atrasada) - Number(a.atrasada) || Number(b.prioridade === "urgente") - Number(a.prioridade === "urgente") || a.created_at.localeCompare(b.created_at);
+  const colunas = visao === "status"
+    ? COLS.map((c) => ({ key: c.key, titulo: STATUS[c.key].label, dot: c.dot, list: rows.filter((r) => r.status === c.key).sort(ordenar) }))
+    : Array.from(new Set(rows.map((r) => r.cliente))).sort((a, b) => a.localeCompare(b, "pt-BR")).map((cl) => ({ key: cl, titulo: cl, dot: "bg-accent", list: rows.filter((r) => r.cliente === cl).sort(ordenar) }));
   const semResp = rows.filter((r) => !r.responsavel_compras_id && r.status !== "entregue").length;
   const atrasadas = rows.filter((r) => r.atrasada).length;
 
@@ -51,21 +61,36 @@ function Fila() {
         <span className="inline-flex items-center gap-2 rounded-md border border-status-cotacao/40 bg-status-cotacao/10 px-3 py-1.5 text-sm"><UserX className="h-4 w-4 text-status-cotacao" /> {semResp} sem responsável</span>
         <span className="inline-flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-1.5 text-sm text-destructive"><AlertTriangle className="h-4 w-4" /> {atrasadas} atrasada(s)</span>
       </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="inline-flex rounded-md border bg-card p-1">
+          {(["status", "cliente"] as const).map((v) => (
+            <button key={v} type="button" onClick={() => setVisao(v)} className={cn("min-h-9 rounded px-3 text-sm font-medium", visao === v ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}>
+              {v === "status" ? "Por status" : "Por cliente"}
+            </button>
+          ))}
+        </div>
+        <Select value={cliente} onValueChange={setCliente}>
+          <SelectTrigger className="w-full sm:w-64"><SelectValue placeholder="Cliente" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos os clientes</SelectItem>
+            {clientes.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+      {colunas.length === 0 && <EmptyState title="Nenhuma solicitação na fila." />}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        {COLS.map((c) => {
-          const list = rows
-            .filter((r) => r.status === c.key)
-            .sort((a, b) => Number(b.atrasada) - Number(a.atrasada) || Number(b.prioridade === "urgente") - Number(a.prioridade === "urgente") || a.created_at.localeCompare(b.created_at));
+        {colunas.map((c) => {
+          const list = c.list;
           return (
             <div key={c.key} className="flex flex-col rounded-lg bg-muted/60 p-3">
               <div className="mb-3 flex items-center gap-2 px-1">
                 <span className={cn("h-2.5 w-2.5 rounded-full", c.dot)} />
-                <h2 className="text-sm font-semibold">{STATUS[c.key].label}</h2>
+                <h2 className="truncate text-sm font-semibold">{c.titulo}</h2>
                 <span className="ml-auto text-xs text-muted-foreground">{list.length}</span>
               </div>
               <div className="space-y-2">
                 {list.length === 0 && <p className="px-1 py-4 text-center text-xs text-muted-foreground">Vazio</p>}
-                {list.map((r) => <KCard key={r.id} r={r} />)}
+                {list.map((r) => <KCard key={r.id} r={r} porCliente={visao === "cliente"} />)}
               </div>
             </div>
           );
@@ -75,7 +100,7 @@ function Fila() {
   );
 }
 
-function KCard({ r }: { r: PainelRow }) {
+function KCard({ r, porCliente }: { r: PainelRow; porCliente?: boolean }) {
   const dias = differenceInCalendarDays(new Date(), parseISO(r.created_at));
   return (
     <Link
@@ -88,7 +113,7 @@ function KCard({ r }: { r: PainelRow }) {
         <span className="text-muted-foreground">{dias}d em aberto</span>
       </div>
       <p className="mt-1 text-sm font-medium leading-snug">{r.titulo}</p>
-      <p className="truncate text-xs text-muted-foreground">{r.cliente}</p>
+      <p className="truncate text-xs text-muted-foreground">{porCliente ? `${STATUS[r.status].label}${r.empreendimento ? " · " + r.empreendimento : ""}` : r.cliente}</p>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         <PrioridadeBadge prioridade={r.prioridade} />
         {r.data_necessaria && <span className={cn("text-xs", r.atrasada ? "font-medium text-destructive" : "text-muted-foreground")}>até {fmtDate(r.data_necessaria)}</span>}
