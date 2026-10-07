@@ -24,6 +24,12 @@ Regras automáticas (triggers): primeira compra → `comprada`; entrega parcial 
 - Segredos necessários (Supabase → Edge Functions → Secrets): `OPENAI_API_KEY` (obrigatório), `EXTRACAO_MODEL` (opcional, padrão `gpt-4.1`).
 - Deploy: `supabase functions deploy extrair-projeto-executivo --project-ref wrpqayrqaiekdycknhsp`
 
+### Regras de negócio da leitura
+
+- **Marcenaria = 1 item.** Toda a marcenaria (móveis, painéis, nichos, carenagens em MDF e as ferragens do marceneiro: puxadores, Tip-on, Krok, cabideiro) vira um único item `Marcenaria`, quantidade 1, unidade `vb`, com o resumo de ambientes, padrões e ferragens na especificação. A regra está no prompt e também no código (`consolidarMarcenaria`), para não depender da IA.
+- **Fornecimento/Cortesia Bwild = a Bwild compra.** Esses itens ficam sempre na lista de compra, com a observação correspondente. Se a IA mandar algum para "não comprar", o código devolve para os itens (`recuperarFornecimentoBwild`).
+- **"Não comprar"** só para o que o projeto manda manter/aproveitar (existente, entregue pela construtora).
+
 ## Testes de API
 
 Coleção Postman **Bwild Compras — API** + ambiente **Bwild Compras — Produção** (workspace "Pedro Alves's Workspace"): login, extração, criar solicitação/itens, assumir, registrar compra, confirmar recebimento, painel e histórico.

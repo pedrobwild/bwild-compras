@@ -103,6 +103,104 @@ const SCHEMA = {
   },
 };
 
+
+// Marcenaria é comprada como um pacote único (contrato com o marceneiro):
+// consolida qualquer item de marcenaria ou ferragem de marcenaria em 1 item "Marcenaria".
+type Item = {
+  descricao: string; categoria: string; quantidade: number | null; unidade: string; ambiente: string | null;
+  especificacao: string | null; referencia_projeto: string | null; link_referencia: string | null;
+  observacao: string | null; confianca: string;
+};
+const RE_FERRAGEM_MARCENARIA = /(puxador|tip[- ]?on|krok|cabideiro|corredi[çc]a|dobradi[çc]a|amortecedor|fecho toque|push)/i;
+
+function ehMarcenaria(i: Item): boolean {
+  if (i.categoria === "Marcenaria") return true;
+  if (i.categoria === "Ferragens") {
+    const ref = `${i.referencia_projeto ?? ""} ${i.observacao ?? ""}`;
+    return /marcenaria/i.test(ref) || RE_FERRAGEM_MARCENARIA.test(i.descricao);
+  }
+  return false;
+}
+
+function unicos(lista: (string | null | undefined)[]): string[] {
+  const vistos = new Set<string>(); const out: string[] = [];
+  for (const v of lista) {
+    const t = (v ?? "").trim(); if (!t) continue;
+    const k = t.toLowerCase(); if (vistos.has(k)) continue;
+    vistos.add(k); out.push(t);
+  }
+  return out;
+}
+
+function consolidarMarcenaria(itens: Item[]): Item[] {
+  const grupo = itens.filter(ehMarcenaria);
+  if (!grupo.length) return itens;
+  const principal = grupo.find((i) => /^marcenaria$/i.test(i.descricao.trim()));
+  const ambientes = unicos(grupo.map((i) => i.ambiente));
+  const folhas = unicos(grupo.flatMap((i) => (i.referencia_projeto ?? "").match(/\d{1,2}/g) ?? [])).map(Number).sort((a, b) => a - b);
+  const refFolhas = folhas.length
+    ? (folhas.length === 1 ? `Folha ${String(folhas[0]).padStart(2, "0")} – Marcenaria` : `Folhas ${folhas.map((f) => String(f).padStart(2, "0")).join(", ")} – Marcenaria`)
+    : null;
+  let espec = principal?.especificacao?.trim() || "";
+  if (grupo.length > 1 || !espec) {
+    const partes = unicos(grupo.filter((i) => i !== principal).map((i) => i.descricao));
+    const extra = partes.length ? `Itens previstos: ${partes.join("; ")}.` : "";
+    espec = [espec, extra].filter(Boolean).join(" ");
+  }
+  if (espec.length > 900) espec = espec.slice(0, 897) + "...";
+  const consolidado: Item = {
+    descricao: "Marcenaria",
+    categoria: "Marcenaria",
+    quantidade: 1,
+    unidade: "vb",
+    ambiente: ambientes.length === 1 ? ambientes[0] : "Geral",
+    especificacao: espec || null,
+    referencia_projeto: principal?.referencia_projeto?.trim() || refFolhas,
+    link_referencia: null,
+    observacao: unicos(grupo.map((i) => i.observacao)).join(" | ") || null,
+    confianca: "alta",
+  };
+  const pos = itens.findIndex(ehMarcenaria);
+  const resto = itens.filter((i) => !ehMarcenaria(i));
+  resto.splice(Math.min(pos, resto.length), 0, consolidado);
+  return resto;
+}
+
+// Rede de segurança: "Fornecimento/Cortesia Bwild" = a Bwild compra. Se a IA mandar para "não comprar", devolve para os itens.
+const RE_BWILD = /(fornecimento|cortesia)\s+bwild/i;
+const MAPA_CATEGORIA: [RegExp, string][] = [
+  [/(tv|televis|geladeira|refrigerador|cooktop|micro-?ondas|forno|fryer|purificador|lava|secadora|coifa|depurador|frigobar)/i, "Eletrodomésticos"],
+  [/(ar[- ]condicionado|split|evaporadora|condensadora)/i, "Climatização"],
+  [/(cadeira|mesa|sof[aá]|colch[aã]o|box ba[uú]|cama|poltrona|banqueta|rack|estante)/i, "Mobiliário"],
+  [/(cortina|persiana)/i, "Cortinas e persianas"],
+  [/(assento|bacia|vaso|cuba|torneira|chuveiro|ducha|misturador|registro)/i, "Louças e metais"],
+  [/(toalheiro|papeleira|cabide|porta shampoo|porta toalha|acess[oó]rio)/i, "Acessórios de banheiro"],
+  [/(lumin[aá]ria|spot|pendente|trilho|led|abajur)/i, "Iluminação"],
+  [/(fechadura|porta)/i, "Portas e esquadrias"],
+  [/(quadro|espelho|vaso decorativo|tapete|almofada|planta|decora)/i, "Decoração"],
+];
+function categoriaPorNome(nome: string): string {
+  for (const [re, cat] of MAPA_CATEGORIA) if (re.test(nome)) return cat;
+  return "Outros";
+}
+function recuperarFornecimentoBwild(res: { itens: Item[]; nao_comprar: { descricao: string; motivo: string; referencia_projeto: string | null }[] }) {
+  const manter: typeof res.nao_comprar = [];
+  for (const n of res.nao_comprar ?? []) {
+    const texto = `${n.motivo ?? ""} ${n.descricao ?? ""}`;
+    if (!RE_BWILD.test(texto) || /construtora|existente|aproveit/i.test(texto)) { manter.push(n); continue; }
+    const m = n.descricao.match(/\(?\s*(\d{1,3})\s*(unidades?|un\b|p[cç]s?|pe[cç]as?)\s*\)?/i);
+    const qtd = m ? Number(m[1]) : 1;
+    const descricao = n.descricao.replace(/\s*\(\s*\d{1,3}\s*(unidades?|un|p[cç]s?|pe[cç]as?)\s*\)\s*/i, " ").trim();
+    res.itens.push({
+      descricao, categoria: categoriaPorNome(descricao), quantidade: qtd, unidade: "un", ambiente: null,
+      especificacao: null, referencia_projeto: n.referencia_projeto ?? null, link_referencia: null,
+      observacao: (n.motivo.match(RE_BWILD)?.[0] ?? "Fornecimento Bwild").replace(/^./, (c) => c.toUpperCase()),
+      confianca: "media",
+    });
+  }
+  res.nao_comprar = manter;
+}
+
 const INSTRUCOES = `Você é comprador técnico sênior de uma empresa de reformas de interiores (apartamentos compactos em São Paulo).
 Recebe o TEXTO extraído de um projeto executivo em PDF, página por página ("FOLHA NN"). O texto vem de pranchas técnicas: fragmentado, com cotas soltas e legendas quebradas em várias linhas. Reconstrua o sentido.
 
@@ -110,8 +208,9 @@ TAREFA: montar a lista de compras da obra para a equipe de Compras validar.
 
 REGRAS
 1. Liste somente o que precisa ser COMPRADO ou CONTRATADO para executar o projeto: acabamentos (tinta, revestimento, piso, rodapé, rejunte), louças, metais, bancadas/pedras, soleiras, bits, iluminação, materiais elétricos citados (tomadas, interruptores, caixas), infraestrutura citada (tubulação frigorígena, mangueira, tubo), box/vidros, portas e kits, eletrodomésticos, ar-condicionado, mobiliário, colchão, cortinas, fechadura, acessórios de banheiro, decoração e MARCENARIA.
-2. Marcenaria: um item por móvel/módulo (ex.: "Armário aéreo cozinha"), com acabamento/padrão (ex.: Carvalho Xingu, Sampa, Branco TXT — padrão Casa Azul), profundidade e ferragens especiais (sistema Krok, Tip-on, puxador cava/transpasse/redondo, cabideiro inox) na especificação. Ferragens especiais citadas também viram itens próprios na categoria "Ferragens". Use unidade "un" ou "conj".
+2. MARCENARIA = UM ÚNICO ITEM. Não liste móvel a móvel. Gere exatamente 1 item com descricao "Marcenaria", categoria "Marcenaria", quantidade 1, unidade "vb", ambiente "Geral" (ou o único ambiente, se houver só um). Na especificacao, resuma em uma ou duas frases os ambientes atendidos, os padrões/acabamentos (ex.: Sampa, Carvalho Xingu, Branco TXT — padrão Casa Azul) e as ferragens especiais (sistema Krok, Tip-on, puxadores, cabideiro). Em referencia_projeto, liste as folhas de marcenaria (ex.: "Folhas 14 a 17 – Marcenaria"). Ferragens, puxadores, painéis, nichos, carenagens em MDF e qualquer outro componente executado pelo marceneiro fazem parte desse item e NÃO viram itens separados (nem na categoria "Ferragens"). Use "Ferragens" só para ferragens compradas à parte, fora da marcenaria.
 3. NÃO coloque em "itens" o que o projeto diz para manter ou aproveitar ("existente", "aproveitamento", "entregue pela construtora", "manter"). Coloque esses em "nao_comprar" com o motivo.
+   ATENÇÃO: a Bwild é a empresa que executa a obra e faz as compras. "FORNECIMENTO BWILD" e "CORTESIA BWILD" significam que a BWILD COMPRA o item — eles SEMPRE vão em "itens" (nunca em "nao_comprar"), com observacao "Fornecimento Bwild" ou "Cortesia Bwild".
 4. Quantidade: use a do projeto (quadros de revestimento, tomadas, luminárias, "02 unidades", "TOTAL PARA COMPRA"). Para revestimento/piso prefira a quantidade que já inclui quebra. Pintura: informe a área em m² na especificação e quantidade em m² se constar. Se não houver quantidade, use null e confianca "media" ou "baixa".
 5. especificacao: marca, linha, modelo, cor, dimensões, voltagem, potência, temperatura de cor. Copie exatamente do projeto.
 6. referencia_projeto: "Folha NN – <assunto da folha>" (ex.: "Folha 08 – Planta de acabamentos").
@@ -179,6 +278,10 @@ Deno.serve(async (req) => {
     if (!resp.ok) throw new Error(data?.error?.message ?? `OpenAI HTTP ${resp.status}`);
     const conteudo = data.choices?.[0]?.message?.content;
     const resultado = JSON.parse(conteudo);
+    resultado.itens = resultado.itens ?? [];
+    resultado.nao_comprar = resultado.nao_comprar ?? [];
+    recuperarFornecimentoBwild(resultado);
+    resultado.itens = consolidarMarcenaria(resultado.itens);
     if (truncado) resultado.avisos.unshift("O projeto é muito extenso; parte final do texto não foi lida. Confira as últimas folhas.");
 
     const uso = { tokens_entrada: data.usage?.prompt_tokens ?? null, tokens_saida: data.usage?.completion_tokens ?? null };
