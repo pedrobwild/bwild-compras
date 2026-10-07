@@ -99,8 +99,15 @@ function Fila() {
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         {colunas.map((c) => {
           const list = c.list;
+          const dropAtivo = visao === "status";
           return (
-            <div key={c.key} className="flex flex-col rounded-lg bg-muted/60 p-3">
+            <div
+              key={c.key}
+              onDragOver={dropAtivo ? (e) => { e.preventDefault(); setOverCol(c.key); } : undefined}
+              onDragLeave={dropAtivo ? () => setOverCol((o) => (o === c.key ? null : o)) : undefined}
+              onDrop={dropAtivo ? (e) => { e.preventDefault(); setOverCol(null); if (dragId) moverPara(dragId, c.key as Status); setDragId(null); } : undefined}
+              className={cn("flex flex-col rounded-lg bg-muted/60 p-3 transition-colors", dropAtivo && overCol === c.key && "ring-2 ring-accent bg-accent/10")}
+            >
               <div className="mb-3 flex items-center gap-2 px-1">
                 <span className={cn("h-2.5 w-2.5 rounded-full", c.dot)} />
                 <h2 className="truncate text-sm font-semibold">{c.titulo}</h2>
@@ -108,7 +115,9 @@ function Fila() {
               </div>
               <div className="space-y-2">
                 {list.length === 0 && <p className="px-1 py-4 text-center text-xs text-muted-foreground">Vazio</p>}
-                {list.map((r) => <KCard key={r.id} r={r} porCliente={visao === "cliente"} />)}
+                {list.map((r) => (
+                  <KCard key={r.id} r={r} porCliente={visao === "cliente"} draggable={dropAtivo} dragging={dragId === r.id} onDragStart={() => setDragId(r.id)} onDragEnd={() => { setDragId(null); setOverCol(null); }} />
+                ))}
               </div>
             </div>
           );
