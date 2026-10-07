@@ -101,7 +101,7 @@ function LoginPage() {
                   className="space-y-4"
                   onSubmit={login.handleSubmit(async (v) => {
                     const { error } = await supabase.auth.signInWithPassword(v);
-                    if (error) toast.error(error.message === "Invalid login credentials" ? "E-mail ou senha incorretos" : error.message);
+                    if (error) toast.error(error.message === "Invalid login credentials" ? "E-mail ou senha incorretos" : /not confirmed/i.test(error.message) ? "Confirme seu e-mail pelo link que enviamos antes de entrar" : error.message);
                   })}
                 >
                   <Field label="E-mail" type="email" autoComplete="email" {...login.register("email")} error={login.formState.errors.email?.message} />
@@ -121,8 +121,15 @@ function LoginPage() {
                       password: v.password,
                       options: { data: { nome: v.nome }, emailRedirectTo: window.location.origin },
                     });
-                    if (error) return toast.error(error.message);
-                    if (!data.session) toast.success("Cadastro feito! Confirme pelo link enviado ao seu e-mail.");
+                    if (error) {
+                      if (/confirm/i.test(error.message)) return toast.success("Enviamos um link de confirmação para seu e-mail");
+                      return toast.error(error.message);
+                    }
+                    if (!data.session) {
+                      toast.success("Enviamos um link de confirmação para seu e-mail");
+                      signup.reset();
+                      setMode("entrar");
+                    }
                   })}
                 >
                   <Field label="Nome" {...signup.register("nome")} error={signup.formState.errors.nome?.message} />

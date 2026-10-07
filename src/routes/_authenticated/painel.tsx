@@ -1,6 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { isSameMonth, parseISO } from "date-fns";
+import { addDays, endOfMonth, format, isSameMonth, parseISO, startOfMonth } from "date-fns";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Plus, Search, AlertTriangle } from "lucide-react";
 import { usePainel } from "@/hooks/usePainel";
 import { useAuth } from "@/hooks/useAuth";
@@ -29,6 +31,31 @@ export const Route = createFileRoute("/_authenticated/painel")({
 
 function Painel() {
   const { data, isLoading, error } = usePainel();
+  const comprasResumo = useQuery({
+    queryKey: ["painel", "compras-resumo"],
+    queryFn: async () => {
+      const hoje = new Date();
+      const ini = format(startOfMonth(hoje), "yyyy-MM-dd");
+      const fim = format(endOfMonth(hoje), "yyyy-MM-dd");
+      const h = format(hoje, "yyyy-MM-dd");
+      const h7 = format(addDays(hoje, 7), "yyyy-MM-dd");
+      let custoMes = 0;
+      for (let from = 0; ; from += 1000) {
+        const { data, error } = await supabase
+          .from("compras").select("id, valor_total")
+          .gte("data_compra", ini).lte("data_compra", fim)
+          .order("id").range(from, from + 999);
+        if (error) throw error;
+        custoMes += (data ?? []).reduce((a, c) => a + Number(c.valor_total ?? 0), 0);
+        if (!data || data.length < 1000) break;
+      }
+      const { count, error } = await supabase
+        .from("compras").select("id", { count: "exact", head: true })
+        .gte("previsao_entrega", h).lte("previsao_entrega", h7).is("data_entrega_real", null);
+      if (error) throw error;
+      return { custoMes, entregas7: count ?? 0 };
+    },
+  });
   const { user } = useAuth();
   const navigate = useNavigate();
   const [q, setQ] = useState("");
@@ -47,7 +74,6 @@ function Painel() {
       compradas: rows.filter((r) => r.status === "comprada" || r.status === "entregue_parcial").length,
       entreguesMes: rows.filter((r) => r.status === "entregue" && inMonth(r.updated_at)).length,
       atrasadas: rows.filter((r) => r.atrasada).length,
-      custoMes: rows.filter((r) => r.status !== "cancelada" && inMonth(r.created_at)).reduce((s, r) => s + Number(r.custo_total ?? 0), 0),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows]);
@@ -77,7 +103,8 @@ function Painel() {
     { label: "Aguardando entrega", value: resumo.compradas, cls: "text-status-comprada" },
     { label: "Entregues no mês", value: resumo.entreguesMes, cls: "text-status-entregue" },
     { label: "Atrasadas", value: resumo.atrasadas, cls: "text-destructive" },
-    { label: "Custo do mês", value: fmtBRL(resumo.custoMes), cls: "text-foreground" },
+    { label: "Entregas próx. 7 dias", value: comprasResumo.data ? comprasResumo.data.entregas7 : "—", cls: "text-status-parcial" },
+    { label: "Custo do mês", value: comprasResumo.data ? fmtBRL(comprasResumo.data.custoMes) : "—", cls: "text-foreground" },
   ];
 
   const go = (id: string) => navigate({ to: "/solicitacoes/$id", params: { id } });
@@ -94,7 +121,7 @@ function Painel() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-7">
         {cards.map((c) => (
           <div key={c.label} className="rounded-lg border bg-card p-4">
             <p className="text-xs text-muted-foreground">{c.label}</p>
