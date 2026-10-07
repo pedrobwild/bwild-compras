@@ -13,7 +13,10 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as AuthenticatedComprasRouteImport } from './routes/_authenticated/compras'
 import { Route as AuthenticatedPainelRouteImport } from './routes/_authenticated/painel'
+import { Route as AuthenticatedAdminUsuariosRouteImport } from './routes/_authenticated/admin.usuarios'
+import { Route as AuthenticatedSolicitacoesIdRouteImport } from './routes/_authenticated/solicitacoes.$id'
 import { Route as AuthenticatedSolicitacoesNovaRouteImport } from './routes/_authenticated/solicitacoes.nova'
 
 const IndexRoute = IndexRouteImport.update({
@@ -35,11 +38,28 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
   path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedComprasRoute = AuthenticatedComprasRouteImport.update({
+  id: '/compras',
+  path: '/compras',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedPainelRoute = AuthenticatedPainelRouteImport.update({
   id: '/painel',
   path: '/painel',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAdminUsuariosRoute =
+  AuthenticatedAdminUsuariosRouteImport.update({
+    id: '/admin/usuarios',
+    path: '/admin/usuarios',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedSolicitacoesIdRoute =
+  AuthenticatedSolicitacoesIdRouteImport.update({
+    id: '/solicitacoes/$id',
+    path: '/solicitacoes/$id',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedSolicitacoesNovaRoute =
   AuthenticatedSolicitacoesNovaRouteImport.update({
     id: '/solicitacoes/nova',
@@ -51,14 +71,20 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/compras': typeof AuthenticatedComprasRoute
   '/painel': typeof AuthenticatedPainelRoute
+  '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
+  '/solicitacoes/$id': typeof AuthenticatedSolicitacoesIdRoute
   '/solicitacoes/nova': typeof AuthenticatedSolicitacoesNovaRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/compras': typeof AuthenticatedComprasRoute
   '/painel': typeof AuthenticatedPainelRoute
+  '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
+  '/solicitacoes/$id': typeof AuthenticatedSolicitacoesIdRoute
   '/solicitacoes/nova': typeof AuthenticatedSolicitacoesNovaRoute
 }
 export interface FileRoutesById {
@@ -67,22 +93,43 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/_authenticated/compras': typeof AuthenticatedComprasRoute
   '/_authenticated/painel': typeof AuthenticatedPainelRoute
+  '/_authenticated/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
+  '/_authenticated/solicitacoes/$id': typeof AuthenticatedSolicitacoesIdRoute
   '/_authenticated/solicitacoes/nova': typeof AuthenticatedSolicitacoesNovaRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/login' | '/reset-password' | '/painel' | '/solicitacoes/nova'
+    | '/'
+    | '/login'
+    | '/reset-password'
+    | '/compras'
+    | '/painel'
+    | '/admin/usuarios'
+    | '/solicitacoes/$id'
+    | '/solicitacoes/nova'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/reset-password' | '/painel' | '/solicitacoes/nova'
+  to:
+    | '/'
+    | '/login'
+    | '/reset-password'
+    | '/compras'
+    | '/painel'
+    | '/admin/usuarios'
+    | '/solicitacoes/$id'
+    | '/solicitacoes/nova'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/login'
     | '/reset-password'
+    | '/_authenticated/compras'
     | '/_authenticated/painel'
+    | '/_authenticated/admin/usuarios'
+    | '/_authenticated/solicitacoes/$id'
     | '/_authenticated/solicitacoes/nova'
   fileRoutesById: FileRoutesById
 }
@@ -123,11 +170,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/compras': {
+      id: '/_authenticated/compras'
+      path: '/compras'
+      fullPath: '/compras'
+      preLoaderRoute: typeof AuthenticatedComprasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/painel': {
       id: '/_authenticated/painel'
       path: '/painel'
       fullPath: '/painel'
       preLoaderRoute: typeof AuthenticatedPainelRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/usuarios': {
+      id: '/_authenticated/admin/usuarios'
+      path: '/admin/usuarios'
+      fullPath: '/admin/usuarios'
+      preLoaderRoute: typeof AuthenticatedAdminUsuariosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/solicitacoes/$id': {
+      id: '/_authenticated/solicitacoes/$id'
+      path: '/solicitacoes/$id'
+      fullPath: '/solicitacoes/$id'
+      preLoaderRoute: typeof AuthenticatedSolicitacoesIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/solicitacoes/nova': {
@@ -141,12 +209,18 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedComprasRoute: typeof AuthenticatedComprasRoute
   AuthenticatedPainelRoute: typeof AuthenticatedPainelRoute
+  AuthenticatedAdminUsuariosRoute: typeof AuthenticatedAdminUsuariosRoute
+  AuthenticatedSolicitacoesIdRoute: typeof AuthenticatedSolicitacoesIdRoute
   AuthenticatedSolicitacoesNovaRoute: typeof AuthenticatedSolicitacoesNovaRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedComprasRoute: AuthenticatedComprasRoute,
   AuthenticatedPainelRoute: AuthenticatedPainelRoute,
+  AuthenticatedAdminUsuariosRoute: AuthenticatedAdminUsuariosRoute,
+  AuthenticatedSolicitacoesIdRoute: AuthenticatedSolicitacoesIdRoute,
   AuthenticatedSolicitacoesNovaRoute: AuthenticatedSolicitacoesNovaRoute,
 }
 
