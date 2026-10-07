@@ -87,7 +87,7 @@ function Detalhe() {
       .channel(`sol-${id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "solicitacoes", filter: `id=eq.${id}` }, () => refresh())
       .on("postgres_changes", { event: "*", schema: "public", table: "compras", filter: `solicitacao_id=eq.${id}` }, () => refresh())
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "solicitacao_eventos", filter: `solicitacao_id=eq.${id}` }, () => refresh())
+      .on("postgres_changes", { event: "*", schema: "public", table: "solicitacao_eventos", filter: `solicitacao_id=eq.${id}` }, () => refresh())
       .subscribe();
     return () => { supabase.removeChannel(ch); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
