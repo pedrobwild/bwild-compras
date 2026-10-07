@@ -26,13 +26,13 @@ Regras automáticas (triggers): primeira compra → `comprada`; entrega parcial 
 
 ### Regras de negócio da leitura
 
-- **Marcenaria = 1 item.** Toda a marcenaria (móveis, painéis, nichos, carenagens em MDF e as ferragens do marceneiro: puxadores, Tip-on, Krok, cabideiro) vira um único item `Marcenaria`, quantidade 1, unidade `vb`, com o resumo de ambientes, padrões e ferragens na especificação. A regra está no prompt e também no código (`consolidarMarcenaria`), para não depender da IA.
-- **Fornecimento/Cortesia Bwild = a Bwild compra.** Esses itens ficam sempre na lista de compra, com a observação correspondente. Se a IA mandar algum para "não comprar", o código devolve para os itens (`recuperarFornecimentoBwild`).
-- **"Não comprar"** só para o que o projeto manda manter/aproveitar (existente, entregue pela construtora), sempre com o **ambiente** (campo `ambiente` e prefixo na descrição, ex.: "Cozinha: aproveitamento da bancada, cuba, torneira e carenagem").
-  - "Remoção de X" / "Novo X" = X será comprado naquele ambiente; o aproveitamento do mesmo tipo de peça é de outro ambiente.
-  - Bancada de pia com cuba e torneira fora do banheiro = Cozinha.
-  - Rede de segurança no código (`revisarNaoComprar`): se "não comprar" citar bancada, cuba, torneira, bit, soleira, porta, box, chuveiro, bacia ou tanque num ambiente em que a lista de compra tem a mesma peça, o ambiente é limpo e entra um aviso "Conferir na planta". Notas repetidas viram um registro só.
-  - Limitação: a leitura usa só o texto do PDF e não enxerga para onde apontam as setas das notas; quando a mesma nota aparece em mais de um ponto, o ambiente pode precisar de conferência.
+O objetivo é a **lista do que precisa ser comprado**; detalhes técnicos são consultados no próprio projeto.
+
+- **Descrição curta** por item (nome reconhecível, marca/modelo quando houver); especificação no máximo uma linha; referência só "Folha NN".
+- **Marcenaria = 1 item** `Marcenaria`, 1 `vb`, sem lista de móveis (código: `consolidarMarcenaria`).
+- **Kits:** peças que fazem parte de um kit listado não viram itens separados (código: `removerPecasDeKit`).
+- **Fornecimento/Cortesia Bwild = a Bwild compra:** sempre na lista de compra (código: `recuperarFornecimentoBwild`).
+- **"Não comprar":** lista curta de apoio, sem repetições (código: `revisarNaoComprar`). Até 5 avisos.
 
 ## Testes de API
 
