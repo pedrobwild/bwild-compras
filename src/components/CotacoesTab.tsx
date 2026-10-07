@@ -85,7 +85,7 @@ export function CotacoesTab({ solicitacaoId, podeEditar }: { solicitacaoId: stri
       </div>
 
       {rows.length === 0 ? (
-        <EmptyState title="Nenhuma cotação ainda" description={podeEditar ? "Adicione a primeira cotação de fornecedor." : "Compras ainda não registrou cotações."} />
+        <EmptyState title={podeEditar ? "Nenhuma cotação ainda — adicione a primeira" : "Compras ainda não registrou cotações"} />
       ) : (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {rows.map((c) => (

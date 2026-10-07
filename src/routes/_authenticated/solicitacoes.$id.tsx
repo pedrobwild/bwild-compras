@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CotacoesTab } from "@/components/CotacoesTab";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -209,9 +210,10 @@ function Detalhe() {
       </div>
 
       <Tabs defaultValue="itens">
-        <TabsList className="grid w-full grid-cols-4 md:inline-flex md:w-auto">
+        <TabsList className="grid w-full grid-cols-5 md:inline-flex md:w-auto">
           <TabsTrigger value="itens">Itens ({d.itens.length})</TabsTrigger>
           <TabsTrigger value="anexos">Anexos ({d.anexos.length})</TabsTrigger>
+          <TabsTrigger value="cotacoes">Cotações</TabsTrigger>
           <TabsTrigger value="compras">Compras ({d.compras.length})</TabsTrigger>
           <TabsTrigger value="timeline">Histórico</TabsTrigger>
         </TabsList>
@@ -263,6 +265,7 @@ function Detalhe() {
             </div>
           )}
         </TabsContent>
+        <TabsContent value="cotacoes"><CotacoesTab solicitacaoId={id} podeEditar={isCompras && s.status !== "cancelada"} /></TabsContent>
         <TabsContent value="timeline"><Timeline eventos={d.eventos} nomes={d.nomes} solicitacaoId={id} onChange={refresh} /></TabsContent>
       </Tabs>
 
