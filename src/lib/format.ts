@@ -58,8 +58,13 @@ export const PRIORIDADE: Record<Prioridade, { label: string; cls: string }> = {
   urgente: { label: "Urgente", cls: "bg-destructive/12 text-destructive border-destructive/40" },
 };
 
-export const UNIDADES = ["un", "m²", "m", "m³", "kg", "cx", "pç", "rolo", "galão", "saco", "jogo"];
-export const AMBIENTES = ["Cozinha", "Banho", "Dormitório/Estar", "Terraço", "Área de serviço", "Geral"];
+export const UNIDADES = ["un", "m²", "m", "m³", "kg", "cx", "pç", "rolo", "galão", "lata", "saco", "jogo", "kit", "conj", "vb"];
+export const AMBIENTES = ["Cozinha", "Banho", "Dormitório/Estar", "Terraço", "Área de serviço", "Área técnica", "Geral"];
+export const CATEGORIAS = [
+  "Marcenaria", "Ferragens", "Revestimentos e pisos", "Pintura", "Iluminação", "Elétrica", "Hidráulica", "Louças e metais",
+  "Bancadas e pedras", "Vidros e box", "Portas e esquadrias", "Eletrodomésticos", "Climatização", "Mobiliário",
+  "Cortinas e persianas", "Decoração", "Acessórios de banheiro", "Drywall e gesso", "Outros",
+];
 export const FORMAS_PAGAMENTO = ["Pix", "Boleto", "Cartão", "Transferência", "Faturado"];
 export const LOCAIS_ENTREGA = ["Obra", "Depósito Bwild", "Retirada no fornecedor", "Outro"];
 
@@ -87,4 +92,5 @@ export interface PainelRow {
   proxima_entrega: string | null;
   locais_entrega: string | null;
   atrasada: boolean;
+  via_projeto_executivo?: boolean | null;
 }
