@@ -19,7 +19,8 @@ export async function extrairTextoPdf(
   pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
 
   const data = new Uint8Array(await file.arrayBuffer());
-  const pdf = await pdfjs.getDocument({ data }).promise;
+  const task = pdfjs.getDocument({ data });
+  const pdf = await task.promise;
   const paginas: PaginaTexto[] = [];
   try {
     for (let n = 1; n <= pdf.numPages; n++) {
@@ -46,7 +47,7 @@ export async function extrairTextoPdf(
       page.cleanup();
     }
   } finally {
-    await pdf.destroy();
+    await task.destroy();
   }
   const total = paginas.reduce((a, p) => a + p.texto.length, 0);
   if (total < 40) throw new PdfSemTextoError();
