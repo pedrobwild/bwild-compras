@@ -215,7 +215,7 @@ function Painel() {
                       <p className="font-medium">{r.cliente}</p>
                       <p className="text-xs text-muted-foreground">{[r.empreendimento, r.unidade].filter(Boolean).join(" · ") || "—"}</p>
                     </TableCell>
-                    <TableCell className="max-w-[220px] truncate">{r.titulo}</TableCell>
+                    <TableCell className="max-w-[260px] truncate">{r.titulo}{r.via_projeto_executivo && <span className="ml-1.5 rounded border border-accent/40 bg-accent/10 px-1.5 py-0.5 text-[10px] font-medium text-accent">Projeto</span>}</TableCell>
                     <TableCell><PrioridadeBadge prioridade={r.prioridade} /></TableCell>
                     <TableCell className={cn(r.atrasada && "font-medium text-destructive")}>{fmtDate(r.data_necessaria)}</TableCell>
                     <TableCell><StatusBadge status={r.status} /></TableCell>
@@ -239,7 +239,7 @@ function Painel() {
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="text-xs font-medium text-muted-foreground">{r.codigo}{r.atrasada && <span className="ml-2 text-destructive">• Atrasada</span>}</p>
-                    <p className="truncate font-medium">{r.titulo}</p>
+                    <p className="truncate font-medium">{r.titulo}{r.via_projeto_executivo && <span className="ml-1.5 rounded border border-accent/40 bg-accent/10 px-1.5 py-0.5 text-[10px] font-medium text-accent">Projeto</span>}</p>
                     <p className="truncate text-sm text-muted-foreground">{r.cliente}{r.empreendimento ? ` · ${r.empreendimento}` : ""}{r.unidade ? ` · ${r.unidade}` : ""}</p>
                   </div>
                   <StatusBadge status={r.status} />

@@ -15,10 +15,12 @@ export function FileDropzone({
   files,
   onChange,
   disabled,
+  renderActions,
 }: {
   files: PendingFile[];
   onChange: (f: PendingFile[]) => void;
   disabled?: boolean;
+  renderActions?: (pf: PendingFile, index: number) => React.ReactNode;
 }) {
   const ref = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
@@ -78,6 +80,7 @@ export function FileDropzone({
                   </button>
                 )}
               </div>
+              {renderActions && <div className="mt-2">{renderActions(pf, i)}</div>}
               {pf.progress > 0 && <Progress value={pf.progress} className="mt-2 h-1.5" />}
             </li>
           ))}

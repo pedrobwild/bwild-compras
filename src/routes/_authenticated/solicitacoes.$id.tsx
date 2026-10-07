@@ -21,8 +21,10 @@ import { ErrorState, EmptyState } from "@/components/States";
 import { FileDropzone, type PendingFile } from "@/components/FileDropzone";
 import { CompraDialog, RecebimentoDialog, type Compra } from "@/components/CompraDialogs";
 import { signedUrl, uploadAnexo } from "@/lib/upload";
-import { AMBIENTES, UNIDADES, STATUS, STATUS_KEYS, fmtBRL, fmtBytes, fmtDate, type Prioridade, type Status } from "@/lib/format";
+import { AMBIENTES, CATEGORIAS, UNIDADES, STATUS, STATUS_KEYS, fmtBRL, fmtBytes, fmtDate, type Prioridade, type Status } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { useLeituraProjeto, type ValidacaoAplicada } from "@/components/ValidacaoProjeto";
+import { FileSearch } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/solicitacoes/$id")({
   head: () => ({
@@ -41,7 +43,7 @@ interface Solicitacao {
   titulo: string; descricao: string | null; prioridade: Prioridade; data_necessaria: string | null; status: Status;
   solicitante_id: string; responsavel_compras_id: string | null; motivo_cancelamento: string | null; created_at: string;
 }
-interface Item { id: string; descricao: string; quantidade: number; unidade: string; ambiente: string | null; referencia_projeto: string | null; observacao: string | null }
+interface Item { id: string; descricao: string; quantidade: number; unidade: string; ambiente: string | null; referencia_projeto: string | null; observacao: string | null; categoria?: string | null; especificacao?: string | null; link_referencia?: string | null; origem?: string | null }
 interface Anexo { id: string; nome_arquivo: string; storage_path: string; tamanho_bytes: number | null; created_at: string }
 interface Evento { id: string; tipo: string; descricao: string | null; usuario_id: string | null; created_at: string }
 
@@ -215,7 +217,7 @@ function Detalhe() {
         </TabsList>
 
         <TabsContent value="itens"><ItensTab itens={d.itens} editable={isOwnerEditable} solicitacaoId={id} onChange={refresh} /></TabsContent>
-        <TabsContent value="anexos"><AnexosTab anexos={d.anexos} solicitacaoId={id} onChange={refresh} /></TabsContent>
+        <TabsContent value="anexos"><AnexosTab anexos={d.anexos} solicitacaoId={id} onChange={refresh} podeImportar={(isCompras || isOwnerEditable) && s.status !== "cancelada"} /></TabsContent>
         <TabsContent value="compras">
           {d.compras.length === 0 ? (
             <EmptyState title="Nenhuma compra registrada ainda." />
@@ -328,43 +330,57 @@ function ItensTab({ itens, editable, solicitacaoId, onChange }: { itens: Item[];
     onChange();
   };
 
+  const gm = new Map<string, Item[]>();
+  for (const i of itens) { const c = i.categoria || "Sem categoria"; gm.set(c, [...(gm.get(c) ?? []), i]); }
+  const ordem = (c: string) => (c === "Sem categoria" ? 999 : CATEGORIAS.indexOf(c));
+  const grupos = [...gm.entries()].sort((a, b) => ordem(a[0]) - ordem(b[0]));
   return (
     <div className="space-y-3">
       {itens.length === 0 ? <EmptyState title="Nenhum item." /> : (
         <>
-          <div className="hidden overflow-hidden rounded-lg border bg-card md:block">
-            <Table>
-              <TableHeader><TableRow>
-                <TableHead>Descrição</TableHead><TableHead className="text-right">Qtd</TableHead><TableHead>Un.</TableHead>
-                <TableHead>Ambiente</TableHead><TableHead>Referência</TableHead><TableHead>Obs.</TableHead>{editable && <TableHead />}
-              </TableRow></TableHeader>
-              <TableBody>
-                {itens.map((i) => (
-                  <TableRow key={i.id}>
-                    <TableCell className="font-medium">{i.descricao}</TableCell>
-                    <TableCell className="text-right tabular-nums">{Number(i.quantidade).toLocaleString("pt-BR")}</TableCell>
-                    <TableCell>{i.unidade}</TableCell>
-                    <TableCell>{i.ambiente || "—"}</TableCell>
-                    <TableCell className="text-sm">{i.referencia_projeto || "—"}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{i.observacao || "—"}</TableCell>
-                    {editable && <TableCell><button aria-label="Remover" onClick={() => del(i.id)} className="rounded p-1 hover:text-destructive"><Trash2 className="h-4 w-4" /></button></TableCell>}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          <div className="space-y-2 md:hidden">
-            {itens.map((i) => (
-              <div key={i.id} className="rounded-lg border bg-card p-3">
-                <div className="flex justify-between gap-2">
-                  <p className="font-medium">{i.descricao}</p>
-                  <span className="whitespace-nowrap text-sm tabular-nums">{Number(i.quantidade).toLocaleString("pt-BR")} {i.unidade}</span>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">{[i.ambiente, i.referencia_projeto, i.observacao].filter(Boolean).join(" · ") || "—"}</p>
-                {editable && <button onClick={() => del(i.id)} className="mt-2 text-xs text-destructive">Remover</button>}
+          {grupos.map(([cat, list]) => (
+            <div key={cat} className="space-y-2">
+              <div className="flex items-baseline justify-between px-1">
+                <h3 className="text-sm font-semibold">{cat}</h3>
+                <span className="text-xs text-muted-foreground">{list.length} {list.length === 1 ? "item" : "itens"}</span>
               </div>
-            ))}
-          </div>
+              <div className="hidden overflow-hidden rounded-lg border bg-card md:block">
+                <Table>
+                  <TableHeader><TableRow>
+                    <TableHead>Descrição</TableHead><TableHead>Especificação</TableHead><TableHead className="text-right">Qtd</TableHead><TableHead>Un.</TableHead>
+                    <TableHead>Ambiente</TableHead><TableHead>Referência</TableHead><TableHead>Obs.</TableHead>{editable && <TableHead />}
+                  </TableRow></TableHeader>
+                  <TableBody>
+                    {list.map((i) => (
+                      <TableRow key={i.id}>
+                        <TableCell className="font-medium">{i.descricao}<OrigemBadge i={i} /></TableCell>
+                        <TableCell className="max-w-[260px] text-sm"><Espec i={i} /></TableCell>
+                        <TableCell className="text-right tabular-nums">{i.quantidade != null ? Number(i.quantidade).toLocaleString("pt-BR") : "—"}</TableCell>
+                        <TableCell>{i.unidade}</TableCell>
+                        <TableCell>{i.ambiente || "—"}</TableCell>
+                        <TableCell className="text-sm">{i.referencia_projeto || "—"}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{i.observacao || "—"}</TableCell>
+                        {editable && <TableCell><button aria-label="Remover" onClick={() => del(i.id)} className="rounded p-1 hover:text-destructive"><Trash2 className="h-4 w-4" /></button></TableCell>}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="space-y-2 md:hidden">
+                {list.map((i) => (
+                  <div key={i.id} className="rounded-lg border bg-card p-3">
+                    <div className="flex justify-between gap-2">
+                      <p className="font-medium">{i.descricao}<OrigemBadge i={i} /></p>
+                      <span className="whitespace-nowrap text-sm tabular-nums">{i.quantidade != null ? Number(i.quantidade).toLocaleString("pt-BR") : "—"} {i.unidade}</span>
+                    </div>
+                    {(i.especificacao || i.link_referencia) && <div className="mt-1 text-sm"><Espec i={i} /></div>}
+                    <p className="mt-1 text-xs text-muted-foreground">{[i.ambiente, i.referencia_projeto, i.observacao].filter(Boolean).join(" · ") || "—"}</p>
+                    {editable && <button onClick={() => del(i.id)} className="mt-2 min-h-9 text-xs text-destructive">Remover</button>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </>
       )}
       {editable && (
@@ -388,8 +404,46 @@ function ItensTab({ itens, editable, solicitacaoId, onChange }: { itens: Item[];
   );
 }
 
-function AnexosTab({ anexos, solicitacaoId, onChange }: { anexos: Anexo[]; solicitacaoId: string; onChange: () => void }) {
+function OrigemBadge({ i }: { i: Item }) {
+  return i.origem === "projeto_executivo" ? <span className="ml-1.5 rounded border border-accent/40 bg-accent/10 px-1.5 py-0.5 text-[10px] font-medium text-accent">do projeto</span> : null;
+}
+function Espec({ i }: { i: Item }) {
+  if (!i.especificacao && !i.link_referencia) return <>—</>;
+  return (
+    <span className="whitespace-pre-wrap break-words">
+      {i.especificacao}
+      {i.link_referencia && /^https?:\/\//i.test(i.link_referencia) && (
+        <a href={i.link_referencia} target="_blank" rel="noopener noreferrer" className="ml-1 inline-flex items-center gap-0.5 text-primary underline-offset-2 hover:underline"><ExternalLink className="h-3 w-3" /> link</a>
+      )}
+    </span>
+  );
+}
+
+function AnexosTab({ anexos, solicitacaoId, onChange, podeImportar }: { anexos: Anexo[]; solicitacaoId: string; onChange: () => void; podeImportar: boolean }) {
+  const { user } = useAuth();
   const [files, setFiles] = useState<PendingFile[]>([]);
+  const leitura = useLeituraProjeto(async (v: ValidacaoAplicada) => {
+    const { error } = await supabase.from("solicitacao_itens").insert(v.itens.map((i) => ({
+      solicitacao_id: solicitacaoId, descricao: i.descricao.trim().slice(0, 500), quantidade: i.quantidade, unidade: i.unidade || "un",
+      ambiente: i.ambiente || null, referencia_projeto: i.referencia_projeto || null, observacao: i.observacao || null,
+      categoria: i.categoria || null, especificacao: i.especificacao.trim() || null, link_referencia: i.link_referencia.trim() || null, origem: "projeto_executivo",
+    })));
+    if (error) { toast.error("Não foi possível importar: " + error.message); throw error; }
+    await supabase.from("extracoes_projeto").update({ solicitacao_id: solicitacaoId }).eq("id", v.extracao_id);
+    await supabase.from("solicitacao_eventos").insert({ solicitacao_id: solicitacaoId, tipo: "comentario", descricao: `Itens importados do projeto executivo: ${v.itens.length} itens`, usuario_id: user!.id });
+    toast.success(`${v.itens.length} itens importados`);
+    onChange();
+  });
+  const importar = async (a: Anexo) => {
+    try {
+      const url = await signedUrl(a.storage_path);
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error("falha ao baixar o arquivo");
+      await leitura.ler(await resp.blob(), a.nome_arquivo);
+    } catch (e) {
+      toast.error("Não foi possível baixar o PDF: " + (e as Error).message);
+    }
+  };
   const [busy, setBusy] = useState(false);
   const open = async (a: Anexo, download: boolean) => {
     try {
@@ -426,6 +480,9 @@ function AnexosTab({ anexos, solicitacaoId, onChange }: { anexos: Anexo[]; solic
                 <p className="truncate text-sm font-medium">{a.nome_arquivo}</p>
                 <p className="text-xs text-muted-foreground">{fmtBytes(a.tamanho_bytes)} · {fmtDate(a.created_at)}</p>
               </div>
+              {podeImportar && /\.pdf$/i.test(a.nome_arquivo) && (
+                <Button size="sm" variant="outline" disabled={leitura.ocupado} onClick={() => importar(a)}><FileSearch className="h-4 w-4" /><span className="hidden sm:inline">Importar itens deste projeto</span></Button>
+              )}
               <Button size="sm" variant="ghost" onClick={() => open(a, false)}><ExternalLink className="h-4 w-4" /><span className="hidden sm:inline">Abrir</span></Button>
               <Button size="sm" variant="outline" onClick={() => open(a, true)}><Download className="h-4 w-4" /><span className="hidden sm:inline">Baixar</span></Button>
             </li>
@@ -435,6 +492,7 @@ function AnexosTab({ anexos, solicitacaoId, onChange }: { anexos: Anexo[]; solic
       <div className="rounded-lg border bg-card p-4">
         <p className="mb-3 text-sm font-medium">Anexar mais arquivos</p>
         <FileDropzone files={files} onChange={setFiles} disabled={busy} />
+        {leitura.element}
         {files.length > 0 && <Button className="mt-3" onClick={send} disabled={busy}>{busy ? "Enviando…" : `Enviar ${files.length} arquivo(s)`}</Button>}
       </div>
     </div>
