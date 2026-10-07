@@ -1,6 +1,6 @@
 import { createFileRoute, Link, Outlet, redirect, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { LayoutDashboard, PlusCircle, KanbanSquare, Users, LogOut } from "lucide-react";
+import { LayoutDashboard, PlusCircle, KanbanSquare, Users, LogOut, Building2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, useRole } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
@@ -24,6 +24,7 @@ function AppLayout() {
     { to: "/painel", label: "Painel", icon: LayoutDashboard, show: true },
     { to: "/solicitacoes/nova", label: "Nova", long: "Nova solicitação", icon: PlusCircle, show: true },
     { to: "/compras", label: "Fila", long: "Fila de Compras", icon: KanbanSquare, show: isCompras },
+    { to: "/clientes", label: "Clientes", long: "Clientes e obras", icon: Building2, show: true },
     { to: "/admin/usuarios", label: "Usuários", icon: Users, show: isAdmin },
   ].filter((i) => i.show) as { to: "/painel"; label: string; long?: string; icon: typeof Users }[];
 
