@@ -13,7 +13,6 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
-import { Route as TesteValidacaoRouteImport } from './routes/teste-validacao'
 import { Route as AuthenticatedComprasRouteImport } from './routes/_authenticated/compras'
 import { Route as AuthenticatedPainelRouteImport } from './routes/_authenticated/painel'
 import { Route as AuthenticatedAdminUsuariosRouteImport } from './routes/_authenticated/admin.usuarios'
@@ -37,11 +36,6 @@ const LoginRoute = LoginRouteImport.update({
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TesteValidacaoRoute = TesteValidacaoRouteImport.update({
-  id: '/teste-validacao',
-  path: '/teste-validacao',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedComprasRoute = AuthenticatedComprasRouteImport.update({
@@ -77,7 +71,6 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/teste-validacao': typeof TesteValidacaoRoute
   '/compras': typeof AuthenticatedComprasRoute
   '/painel': typeof AuthenticatedPainelRoute
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
@@ -88,7 +81,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/teste-validacao': typeof TesteValidacaoRoute
   '/compras': typeof AuthenticatedComprasRoute
   '/painel': typeof AuthenticatedPainelRoute
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
@@ -101,7 +93,6 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/teste-validacao': typeof TesteValidacaoRoute
   '/_authenticated/compras': typeof AuthenticatedComprasRoute
   '/_authenticated/painel': typeof AuthenticatedPainelRoute
   '/_authenticated/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
@@ -114,7 +105,6 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/reset-password'
-    | '/teste-validacao'
     | '/compras'
     | '/painel'
     | '/admin/usuarios'
@@ -125,7 +115,6 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/reset-password'
-    | '/teste-validacao'
     | '/compras'
     | '/painel'
     | '/admin/usuarios'
@@ -137,7 +126,6 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/login'
     | '/reset-password'
-    | '/teste-validacao'
     | '/_authenticated/compras'
     | '/_authenticated/painel'
     | '/_authenticated/admin/usuarios'
@@ -150,7 +138,6 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   LoginRoute: typeof LoginRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
-  TesteValidacaoRoute: typeof TesteValidacaoRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -181,13 +168,6 @@ declare module '@tanstack/react-router' {
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/teste-validacao': {
-      id: '/teste-validacao'
-      path: '/teste-validacao'
-      fullPath: '/teste-validacao'
-      preLoaderRoute: typeof TesteValidacaoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/compras': {
@@ -252,7 +232,6 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   LoginRoute: LoginRoute,
   ResetPasswordRoute: ResetPasswordRoute,
-  TesteValidacaoRoute: TesteValidacaoRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

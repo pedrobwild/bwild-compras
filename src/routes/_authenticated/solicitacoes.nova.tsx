@@ -117,7 +117,7 @@ function NovaSolicitacao() {
       form.setValue("descricao", [cur.descricao?.trim(), bloco].filter(Boolean).join("\n\n").slice(0, 2000));
     }
     const novos = v.itens.map((i) => ({
-      descricao: i.descricao, quantidade: (i.quantidade ?? "") as unknown as number, unidade: i.unidade || "un", ambiente: i.ambiente,
+      descricao: i.descricao, quantidade: (i.quantidade == null ? "" : String(i.quantidade).replace(".", ",")) as unknown as number, unidade: i.unidade || "un", ambiente: i.ambiente,
       referencia_projeto: i.referencia_projeto, observacao: i.observacao, categoria: i.categoria, especificacao: i.especificacao,
       link_referencia: i.link_referencia, origem: "projeto_executivo" as const,
     }));
