@@ -176,7 +176,7 @@ function ClientesPage() {
         </div>
       );
     }
-    return <ErrorState mensagem="Não foi possível carregar os clientes" onRetry={() => clientesQ.refetch()} />;
+    return <ErrorState message="Não foi possível carregar os clientes" />;
   }
 
   const clientes = clientesQ.data ?? [];
@@ -225,8 +225,13 @@ function ClientesPage() {
 
       {filtrados.length === 0 ? (
         <EmptyState
-          titulo={termo ? "Nenhum cliente encontrado" : "Nenhum cliente cadastrado"}
-          descricao={termo ? "Tente outra busca." : isCompras ? "Cadastre o primeiro cliente." : "Aguarde o time de Compras cadastrar."}
+          title={
+            termo
+              ? "Nenhum cliente encontrado — tente outra busca."
+              : isCompras
+                ? "Nenhum cliente cadastrado — cadastre o primeiro."
+                : "Nenhum cliente cadastrado — aguarde o time de Compras cadastrar."
+          }
         />
       ) : (
         <div className="space-y-2">
