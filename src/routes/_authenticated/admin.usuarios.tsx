@@ -75,9 +75,12 @@ function Usuarios() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Usuários</h1>
-        <p className="text-sm text-muted-foreground">Todo cadastro entra como solicitante. Libere Compras ou Admin aqui.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Usuários</h1>
+          <p className="text-sm text-muted-foreground">Todo cadastro entra como solicitante. Libere Compras ou Admin aqui.</p>
+        </div>
+        <NovoUsuarioDialog onCreated={() => qc.invalidateQueries({ queryKey: ["admin-usuarios"] })} />
       </div>
       {q.isLoading ? <LoadingList /> : q.error ? <ErrorState message={(q.error as Error).message} /> : !q.data?.length ? <EmptyState title="Nenhum usuário." /> : (
         <ul className="divide-y rounded-lg border bg-card">
