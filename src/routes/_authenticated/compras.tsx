@@ -28,13 +28,15 @@ export const Route = createFileRoute("/_authenticated/compras")({
 const COLS: { key: Status; dot: string }[] = [
   { key: "nova", dot: "bg-status-nova" },
   { key: "em_cotacao", dot: "bg-status-cotacao" },
+  { key: "aguardando_aprovacao", dot: "bg-status-aprovacao" },
+  { key: "aprovada", dot: "bg-status-aprovada" },
   { key: "comprada", dot: "bg-status-comprada" },
   { key: "entregue_parcial", dot: "bg-status-parcial" },
   { key: "entregue", dot: "bg-status-entregue" },
 ];
 
 function Fila() {
-  const { isCompras, loading } = useRole();
+  const { isCompras, isAdmin, loading } = useRole();
   const { data, isLoading, error } = usePainel();
   const qc = useQueryClient();
   const [visao, setVisao] = useState<"status" | "cliente">("status");
@@ -45,6 +47,12 @@ function Fila() {
   const moverPara = async (id: string, status: Status) => {
     const row = (data ?? []).find((r) => r.id === id);
     if (!row || row.status === status) return;
+    if ((status === "aprovada" || row.status === "aguardando_aprovacao") && !isAdmin)
+      return void toast.error("Somente o admin pode aprovar ou tirar uma solicitação da etapa Aprovação.");
+    if (status === "aprovada" && row.status !== "aguardando_aprovacao")
+      return void toast.error("Só é possível aprovar uma solicitação que está em Aprovação.");
+    if (["comprada", "entregue_parcial", "entregue"].includes(status) && row.status !== "aprovada" && !["comprada", "entregue_parcial", "entregue"].includes(row.status))
+      return void toast.error("A compra só pode ser efetivada depois de Aprovado. Abra a solicitação e use \"Efetivar pedido\".");
     const { error: err } = await supabase.from("solicitacoes").update({ status }).eq("id", id);
     if (err) {
       toast.error(`Não foi possível mover: ${err.message}`);

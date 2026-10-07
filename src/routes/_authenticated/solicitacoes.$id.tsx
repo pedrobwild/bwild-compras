@@ -25,7 +25,7 @@ import { signedUrl, uploadAnexo } from "@/lib/upload";
 import { AMBIENTES, CATEGORIAS, UNIDADES, STATUS, STATUS_KEYS, fmtBRL, fmtBytes, fmtDate, type Prioridade, type Status } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useLeituraProjeto, type ValidacaoAplicada } from "@/components/ValidacaoProjeto";
-import { FileSearch } from "lucide-react";
+import { FileSearch, Send, ShieldCheck } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/solicitacoes/$id")({
   head: () => ({
@@ -51,16 +51,27 @@ interface Evento { id: string; tipo: string; descricao: string | null; usuario_i
 const STEPS: { key: Status; label: string }[] = [
   { key: "nova", label: "Nova" },
   { key: "em_cotacao", label: "Em cotação" },
+  { key: "aguardando_aprovacao", label: "Aprovação" },
+  { key: "aprovada", label: "Aprovado" },
   { key: "comprada", label: "Comprada" },
   { key: "entregue", label: "Entregue" },
 ];
-const stepIndex = (s: Status) => (s === "entregue_parcial" ? 2.5 : STEPS.findIndex((x) => x.key === s));
+const stepIndex = (s: Status) => (s === "entregue_parcial" ? 4.5 : STEPS.findIndex((x) => x.key === s));
 
 function Detalhe() {
   const { id } = Route.useParams();
   const { user } = useAuth();
-  const { isCompras } = useRole();
+  const { isCompras, isAdmin } = useRole();
   const qc = useQueryClient();
+
+  const escolhidaQ = useQuery({
+    queryKey: ["cotacoes", id, "escolhida"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("cotacoes").select("fornecedor, fornecedor_contato, valor_total, condicao_pagamento, prazo_entrega_dias").eq("solicitacao_id", id).eq("escolhida", true).maybeSingle();
+      if (error) return null;
+      return data as { fornecedor: string; fornecedor_contato: string | null; valor_total: number | null; condicao_pagamento: string | null; prazo_entrega_dias: number | null } | null;
+    },
+  });
 
   const q = useQuery({
     queryKey: ["solicitacao", id],
@@ -90,6 +101,7 @@ function Detalhe() {
       .channel(`sol-${id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "solicitacoes", filter: `id=eq.${id}` }, () => refresh())
       .on("postgres_changes", { event: "*", schema: "public", table: "compras", filter: `solicitacao_id=eq.${id}` }, () => refresh())
+      .on("postgres_changes", { event: "*", schema: "public", table: "cotacoes", filter: `solicitacao_id=eq.${id}` }, () => qc.invalidateQueries({ queryKey: ["cotacoes", id] }))
       .on("postgres_changes", { event: "*", schema: "public", table: "solicitacao_eventos", filter: `solicitacao_id=eq.${id}` }, () => refresh())
       .subscribe();
     return () => { supabase.removeChannel(ch); };
@@ -112,6 +124,14 @@ function Detalhe() {
   if (!d.sol) return <EmptyState title="Solicitação não encontrada." action={<Button asChild size="sm"><Link to="/painel">Voltar ao painel</Link></Button>} />;
   const s = d.sol;
   const isOwnerEditable = s.solicitante_id === user?.id && s.status === "nova";
+  const escolhida = escolhidaQ.data ?? null;
+  const podeStatus = (k: Status) => {
+    if (k === s.status) return true;
+    if (isAdmin) return true;
+    if (k === "aprovada" || s.status === "aguardando_aprovacao") return false;
+    if (["comprada", "entregue_parcial", "entregue"].includes(k)) return ["aprovada", "comprada", "entregue_parcial", "entregue"].includes(s.status);
+    return true;
+  };
   const total = d.compras.reduce((a, c) => a + Number(c.valor_total ?? 0), 0);
 
   const update = async (patch: Partial<Solicitacao>, msg: string) => {
@@ -145,9 +165,35 @@ function Detalhe() {
                 <Hand className="h-4 w-4" /> Assumir demanda
               </Button>
             )}
-            {isCompras && s.status !== "cancelada" && (
-              <Button variant={s.responsavel_compras_id ? "default" : "outline"} onClick={() => { setEditCompra(null); setCompraOpen(true); }}>
-                <ShoppingCart className="h-4 w-4" /> Registrar compra
+            {isCompras && (s.status === "nova" || s.status === "em_cotacao") && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (!escolhida) return void toast.error("Escolha um fornecedor na aba Cotações antes de enviar para aprovação.");
+                  update({ status: "aguardando_aprovacao" }, `Enviado para aprovação (${escolhida.fornecedor})`);
+                }}
+              >
+                <Send className="h-4 w-4" /> Enviar para aprovação
+              </Button>
+            )}
+            {isAdmin && s.status === "aguardando_aprovacao" && (
+              <>
+                <Button onClick={() => update({ status: "aprovada" }, "Compra aprovada")}>
+                  <ShieldCheck className="h-4 w-4" /> Aprovar
+                </Button>
+                <Button variant="outline" onClick={() => update({ status: "em_cotacao" }, "Devolvido para cotação")}>
+                  Devolver para cotação
+                </Button>
+              </>
+            )}
+            {isCompras && s.status === "aprovada" && (
+              <Button onClick={() => { setEditCompra(null); setCompraOpen(true); }}>
+                <ShoppingCart className="h-4 w-4" /> Efetivar pedido
+              </Button>
+            )}
+            {isCompras && ["comprada", "entregue_parcial", "entregue"].includes(s.status) && (
+              <Button variant="outline" onClick={() => { setEditCompra(null); setCompraOpen(true); }}>
+                <ShoppingCart className="h-4 w-4" /> Registrar outra compra
               </Button>
             )}
           </div>
@@ -198,7 +244,7 @@ function Detalhe() {
                 <Label className="text-xs text-muted-foreground">Alterar status</Label>
                 <Select value={s.status} onValueChange={(v) => v === "cancelada" ? setCancelOpen(true) : update({ status: v as Status }, "Status atualizado")}>
                   <SelectTrigger className="h-9 w-44"><SelectValue /></SelectTrigger>
-                  <SelectContent>{STATUS_KEYS.map((k) => <SelectItem key={k} value={k}>{STATUS[k].label}</SelectItem>)}</SelectContent>
+                  <SelectContent>{STATUS_KEYS.filter(podeStatus).map((k) => <SelectItem key={k} value={k}>{STATUS[k].label}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             )}
@@ -275,6 +321,7 @@ function Detalhe() {
         solicitacaoId={id}
         enderecoObra={s.endereco_obra}
         compra={editCompra}
+        sugestao={escolhida ? { fornecedor: escolhida.fornecedor, fornecedor_contato: escolhida.fornecedor_contato, valor_total: escolhida.valor_total ?? undefined, forma_pagamento: escolhida.condicao_pagamento } as Partial<Compra> : null}
         onSaved={refresh}
       />
       <RecebimentoDialog compra={recCompra} onOpenChange={(o) => !o && setRecCompra(null)} onSaved={refresh} />
