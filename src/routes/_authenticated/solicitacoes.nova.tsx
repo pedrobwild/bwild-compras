@@ -28,7 +28,7 @@ export const Route = createFileRoute("/_authenticated/solicitacoes/nova")({
   component: NovaSolicitacao,
 });
 
-export const itemSchema = z.object({
+const itemSchema = z.object({
   descricao: z.string().trim().min(1, "Descreva o item").max(500),
   quantidade: z.coerce.number().positive("Qtd > 0").max(1e9),
   unidade: z.string().max(20),
@@ -50,7 +50,7 @@ const schema = z.object({
 });
 type FormValues = z.infer<typeof schema>;
 
-export const emptyItem = { descricao: "", quantidade: 1, unidade: "un", ambiente: "", referencia_projeto: "", observacao: "" };
+const emptyItem = { descricao: "", quantidade: 1, unidade: "un", ambiente: "", referencia_projeto: "", observacao: "" };
 
 function Section({ title, children, hint }: { title: string; hint?: string; children: React.ReactNode }) {
   return (
@@ -233,7 +233,7 @@ function NovaSolicitacao() {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function ItensFields({ form, fields, remove }: { form: any; fields: { id: string }[]; remove: (i: number) => void }) {
+function ItensFields({ form, fields, remove }: { form: any; fields: { id: string }[]; remove: (i: number) => void }) {
   const errs = form.formState.errors.itens ?? [];
   return (
     <div className="space-y-3">
