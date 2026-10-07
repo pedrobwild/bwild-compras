@@ -36,8 +36,23 @@ const COLS: { key: Status; dot: string }[] = [
 function Fila() {
   const { isCompras, loading } = useRole();
   const { data, isLoading, error } = usePainel();
+  const qc = useQueryClient();
   const [visao, setVisao] = useState<"status" | "cliente">("status");
   const [cliente, setCliente] = useState("todos");
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overCol, setOverCol] = useState<string | null>(null);
+
+  const moverPara = async (id: string, status: Status) => {
+    const row = (data ?? []).find((r) => r.id === id);
+    if (!row || row.status === status) return;
+    const { error: err } = await supabase.from("solicitacoes").update({ status }).eq("id", id);
+    if (err) {
+      toast.error(`Não foi possível mover: ${err.message}`);
+      return;
+    }
+    toast.success(`${row.codigo} movido para ${STATUS[status].label}`);
+    qc.invalidateQueries({ queryKey: ["painel"] });
+  };
 
   if (!loading && !isCompras) return <EmptyState title="Esta área é exclusiva da equipe de Compras." />;
   if (isLoading) return <LoadingList />;
