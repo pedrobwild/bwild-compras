@@ -1,8 +1,11 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { differenceInCalendarDays, parseISO, subDays } from "date-fns";
 import { AlertTriangle, UserX } from "lucide-react";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import { usePainel } from "@/hooks/usePainel";
 import { useRole } from "@/hooks/useAuth";
 import { PrioridadeBadge } from "@/components/badges";
