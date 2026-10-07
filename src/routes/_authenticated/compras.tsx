@@ -87,7 +87,47 @@ function Fila() {
   const limite = subDays(new Date(), 30);
   const base = (data ?? []).filter((r) => r.status !== "cancelada" && (r.status !== "entregue" || parseISO(r.updated_at) >= limite));
   const clientes = Array.from(new Set(base.map((r) => r.cliente))).sort((a, b) => a.localeCompare(b, "pt-BR"));
-  const rows = cliente === "todos" ? base : base.filter((r) => r.cliente === cliente);
+
+  const comprasPorSolic = useMemo(() => {
+    const map = new Map<string, { data_compra: string | null; previsao_entrega: string | null }[]>();
+    (comprasDatas ?? []).forEach((c) => {
+      const list = map.get(c.solicitacao_id) ?? [];
+      list.push(c);
+      map.set(c.solicitacao_id, list);
+    });
+    return map;
+  }, [comprasDatas]);
+  const bateNoPeriodo = (id: string, range: DateRange | undefined) => {
+    if (!range?.from) return true;
+    const start = startOfDay(range.from);
+    const end = startOfDay(range.to ?? range.from);
+    const datas = comprasPorSolic.get(id) ?? [];
+    return datas.some((c) => {
+      const raw = c.data_compra ?? c.previsao_entrega; // nunca deve cair aqui, mas evita falso positivo
+      return false || datas.some((cc) => {
+        const d = cc.data_compra ?? null;
+        if (!d) return false;
+        const date = d.length === 10 ? parseISO(d + "T12:00:00") : parseISO(d);
+        return isWithinInterval(date, { start, end });
+      });
+    });
+  };
+  const bateEntrega = (id: string, range: DateRange | undefined) => {
+    if (!range?.from) return true;
+    const start = startOfDay(range.from);
+    const end = startOfDay(range.to ?? range.from);
+    const datas = comprasPorSolic.get(id) ?? [];
+    return datas.some((c) => {
+      if (!c.previsao_entrega) return false;
+      const d = c.previsao_entrega;
+      const date = d.length === 10 ? parseISO(d + "T12:00:00") : parseISO(d);
+      return isWithinInterval(date, { start, end });
+    });
+  };
+  const rows = base
+    .filter((r) => cliente === "todos" || r.cliente === cliente)
+    .filter((r) => bateNoPeriodo(r.id, compraRange))
+    .filter((r) => bateEntrega(r.id, entregaRange));
   const ordenar = (a: PainelRow, b: PainelRow) => Number(b.atrasada) - Number(a.atrasada) || Number(b.prioridade === "urgente") - Number(a.prioridade === "urgente") || a.created_at.localeCompare(b.created_at);
   const colunas = visao === "status"
     ? COLS.map((c) => ({ key: c.key, titulo: STATUS[c.key].label, dot: c.dot, list: rows.filter((r) => r.status === c.key).sort(ordenar) }))
