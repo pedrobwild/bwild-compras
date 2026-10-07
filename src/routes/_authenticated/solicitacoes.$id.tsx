@@ -41,7 +41,7 @@ export const Route = createFileRoute("/_authenticated/solicitacoes/$id")({
 
 interface Solicitacao {
   id: string; codigo: string; cliente: string; empreendimento: string | null; unidade: string | null; endereco_obra: string | null;
-  titulo: string; descricao: string | null; prioridade: Prioridade; data_necessaria: string | null; status: Status;
+  titulo: string; descricao: string | null; prioridade: Prioridade; data_necessaria: string | null; prazo_compra?: string | null; data_compra_efetiva?: string | null; status: Status;
   solicitante_id: string; responsavel_compras_id: string | null; motivo_cancelamento: string | null; created_at: string;
 }
 interface Item { id: string; descricao: string; quantidade: number; unidade: string; ambiente: string | null; referencia_projeto: string | null; observacao: string | null; categoria?: string | null; especificacao?: string | null; link_referencia?: string | null; origem?: string | null }
@@ -203,7 +203,9 @@ function Detalhe() {
           <Info label="Cliente" value={s.cliente} />
           <Info label="Empreendimento / Unidade" value={[s.empreendimento, s.unidade].filter(Boolean).join(" · ") || "—"} />
           <Info label="Solicitante" value={d.nomes[s.solicitante_id] ?? "—"} />
-          <Info label="Necessário até" value={fmtDate(s.data_necessaria)} />
+          <PrazoInfo label="Prazo para efetivar compra" value={s.prazo_compra ?? null} editavel={isCompras || isOwnerEditable} onSave={(v) => update({ prazo_compra: v }, "Prazo de compra atualizado")} />
+          <PrazoInfo label="Prazo para o item chegar" value={s.data_necessaria} editavel={isCompras || isOwnerEditable} onSave={(v) => update({ data_necessaria: v }, "Prazo de chegada atualizado")} />
+          <Info label="Compra realizada em" value={s.data_compra_efetiva ? fmtDate(s.data_compra_efetiva) : "—"} />
           <Info label="Responsável de compras" value={s.responsavel_compras_id ? d.nomes[s.responsavel_compras_id] ?? "—" : "Sem responsável"} />
           <Info label="Endereço da obra" value={s.endereco_obra || "—"} />
           <Info label="Aberta em" value={fmtDate(s.created_at)} />
@@ -590,6 +592,31 @@ function Timeline({ eventos, nomes, solicitacaoId, onChange }: { eventos: Evento
         <Textarea rows={2} value={txt} maxLength={2000} onChange={(e) => setTxt(e.target.value)} placeholder="Escreva uma atualização para a equipe…" />
         <Button onClick={send} disabled={busy || !txt.trim()}>Comentar</Button>
       </div>
+    </div>
+  );
+}
+
+function PrazoInfo({ label, value, editavel, onSave }: { label: string; value: string | null; editavel: boolean; onSave: (v: string | null) => void }) {
+  const [edit, setEdit] = useState(false);
+  const [v, setV] = useState(value ?? "");
+  const atrasado = !!value && value < new Date().toISOString().slice(0, 10);
+  return (
+    <div>
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      {edit ? (
+        <dd className="mt-1 flex gap-1">
+          <Input type="date" className="h-9" value={v} onChange={(e) => setV(e.target.value)} aria-label={label} />
+          <Button size="sm" onClick={() => { setEdit(false); onSave(v || null); }}>OK</Button>
+        </dd>
+      ) : (
+        <dd className={cn("font-medium", !value && "text-destructive")}>
+          {value ? fmtDate(value) : "Preencher"}
+          {editavel && (
+            <button type="button" className="ml-2 text-xs text-accent underline" onClick={() => { setV(value ?? ""); setEdit(true); }}>alterar</button>
+          )}
+          {atrasado && <span className="sr-only"> (vencido)</span>}
+        </dd>
+      )}
     </div>
   );
 }
