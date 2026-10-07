@@ -366,6 +366,15 @@ function ClientesPage() {
                                 <Button
                                   variant="ghost"
                                   size="icon"
+                                  title={`Anexar projeto executivo em ${o.empreendimento} e gerar a lista de compras`}
+                                  aria-label={`Anexar projeto executivo em ${o.empreendimento}`}
+                                  onClick={() => anexarExecutivo(c, o)}
+                                >
+                                  <FileUp className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
                                   title={`Editar obra ${o.empreendimento}`}
                                   aria-label={`Editar obra ${o.empreendimento}`}
                                   onClick={() => setObraDialog({ open: true, clienteId: c.id, obra: o })}
@@ -420,6 +429,21 @@ function ClientesPage() {
         onSave={(v) => salvarObra.mutate(v)}
         saving={salvarObra.isPending}
       />
+      <input
+        ref={fileRef}
+        type="file"
+        accept="application/pdf"
+        className="hidden"
+        aria-label="Selecionar PDF do projeto executivo"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          e.target.value = "";
+          if (!f || !alvoRef.current) return;
+          setAlvo({ ...alvoRef.current, file: f });
+          void leitura.ler(f, f.name);
+        }}
+      />
+      {leitura.element}
     </div>
   );
 }
