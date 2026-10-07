@@ -41,3 +41,12 @@ Coleção Postman **Bwild Compras — API** + ambiente **Bwild Compras — Produ
 ## Migrações
 
 Em `supabase/migrations/`, na ordem aplicada no projeto.
+
+## Clientes/obras, cotações e aprovação
+
+- `clientes_obras`: cadastro unificado (cliente + empreendimento/unidade/endereço/contato). Todos os logados leem; compras/admin gravam.
+- `cotacoes`: propostas por solicitação (fornecedor, valor, prazo em dias, pagamento, validade, comentário, `escolhida`). Só uma escolhida por solicitação (índice único). Escolher um fornecedor registra no histórico.
+- Fluxo de status: Nova > Em cotação > **Aprovação** (`aguardando_aprovacao`) > **Aprovado** (`aprovada`) > Comprada > Entregue.
+  - Só admin aprova ou tira da etapa Aprovação (trigger `guard_aprovacao`).
+  - Compra só pode ser registrada depois de Aprovado.
+  - Se todas as compras forem excluídas, a solicitação volta para Aprovado.
