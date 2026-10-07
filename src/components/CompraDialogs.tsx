@@ -56,6 +56,7 @@ export function CompraDialog({
   solicitacaoId,
   enderecoObra,
   compra,
+  sugestao,
   onSaved,
 }: {
   open: boolean;
@@ -63,25 +64,27 @@ export function CompraDialog({
   solicitacaoId: string;
   enderecoObra: string | null;
   compra?: Compra | null;
+  sugestao?: Partial<Compra> | null;
   onSaved: () => void;
 }) {
   const form = useForm<V>({ resolver: zodResolver(schema) });
   useEffect(() => {
     if (!open) return;
+    const base = compra ?? (sugestao as Compra | null | undefined);
     form.reset({
-      fornecedor: compra?.fornecedor ?? "",
-      fornecedor_contato: compra?.fornecedor_contato ?? "",
-      descricao_itens: compra?.descricao_itens ?? "",
-      valor: numToMask(compra?.valor_total),
-      forma_pagamento: compra?.forma_pagamento ?? undefined,
-      numero_pedido: compra?.numero_pedido ?? "",
-      data_compra: compra?.data_compra ?? today(),
-      previsao_entrega: compra?.previsao_entrega ?? "",
-      local_entrega: compra?.local_entrega ?? "Obra",
-      endereco_entrega: compra?.endereco_entrega ?? enderecoObra ?? "",
-      observacao: compra?.observacao ?? "",
+      fornecedor: base?.fornecedor ?? "",
+      fornecedor_contato: base?.fornecedor_contato ?? "",
+      descricao_itens: base?.descricao_itens ?? "",
+      valor: numToMask(base?.valor_total),
+      forma_pagamento: base?.forma_pagamento ?? undefined,
+      numero_pedido: base?.numero_pedido ?? "",
+      data_compra: base?.data_compra ?? today(),
+      previsao_entrega: base?.previsao_entrega ?? "",
+      local_entrega: base?.local_entrega ?? "Obra",
+      endereco_entrega: base?.endereco_entrega ?? enderecoObra ?? "",
+      observacao: base?.observacao ?? "",
     });
-  }, [open, compra, enderecoObra, form]);
+  }, [open, compra, sugestao, enderecoObra, form]);
   const e = form.formState.errors;
 
   const submit = form.handleSubmit(async (v) => {
