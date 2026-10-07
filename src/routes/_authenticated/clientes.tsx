@@ -68,11 +68,65 @@ const isMissingTable = (e: unknown) =>
 
 function ClientesPage() {
   const { isCompras } = useRole();
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const [busca, setBusca] = useState("");
   const [abertos, setAbertos] = useState<Record<string, boolean>>({});
   const [clienteDialog, setClienteDialog] = useState<{ open: boolean; cliente?: Cliente }>({ open: false });
   const [obraDialog, setObraDialog] = useState<{ open: boolean; clienteId?: string; obra?: Obra }>({ open: false });
+  const [alvo, setAlvo] = useState<{ cliente: Cliente; obra: Obra; file: File } | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const alvoRef = useRef<{ cliente: Cliente; obra: Obra } | null>(null);
+
+  // Anexar projeto executivo direto na obra: lê o PDF, valida e cria a solicitação com os itens
+  const leitura = useLeituraProjeto(async (v: ValidacaoAplicada) => {
+    const ctx = alvoRef.current;
+    const file = alvo?.file;
+    if (!ctx || !file || !user) return;
+    const emp = v.obra.empreendimento.trim() || ctx.obra.empreendimento;
+    const un = v.obra.unidade.trim() || ctx.obra.unidade || "";
+    const avisos = v.avisos.length ? `Avisos do projeto:\n${v.avisos.map((a) => `- ${a}`).join("\n")}` : "";
+    const { data: sol, error: eSol } = await supabase
+      .from("solicitacoes")
+      .insert({
+        cliente: v.obra.cliente.trim() || ctx.cliente.nome,
+        empreendimento: emp,
+        unidade: un || null,
+        endereco_obra: v.obra.endereco.trim() || ctx.obra.endereco || null,
+        titulo: `Compras projeto executivo — ${emp}${un ? ` ${un}` : ""}`.slice(0, 200),
+        descricao: avisos || null,
+        prioridade: "normal",
+        area_m2: v.area_m2,
+        prazo_obra: v.prazo_obra,
+        extracao_id: v.extracao_id,
+      })
+      .select("id, codigo")
+      .single();
+    if (eSol) { toast.error("Não foi possível criar a solicitação: " + eSol.message); throw eSol; }
+    if (v.itens.length) {
+      const { error: eIt } = await supabase.from("solicitacao_itens").insert(
+        v.itens.map((i) => ({
+          solicitacao_id: sol.id, descricao: i.descricao.trim().slice(0, 500), quantidade: i.quantidade,
+          unidade: i.unidade || "un", ambiente: i.ambiente || null, referencia_projeto: i.referencia_projeto || null,
+          observacao: i.observacao || null, categoria: i.categoria || null,
+          especificacao: i.especificacao.trim() || null, link_referencia: i.link_referencia.trim() || null,
+          origem: "projeto_executivo",
+        })),
+      );
+      if (eIt) { toast.error("Solicitação criada, mas os itens falharam: " + eIt.message); throw eIt; }
+    }
+    await supabase.from("extracoes_projeto").update({ solicitacao_id: sol.id }).eq("id", v.extracao_id);
+    try { await uploadAnexo(sol.id, file, () => {}); } catch { toast.error("Solicitação criada, mas o PDF não foi anexado."); }
+    toast.success(`Solicitação ${sol.codigo} criada com ${v.itens.length} itens do projeto`);
+    setAlvo(null);
+    navigate({ to: "/solicitacoes/$id", params: { id: sol.id } });
+  });
+
+  const anexarExecutivo = (cliente: Cliente, obra: Obra) => {
+    alvoRef.current = { cliente, obra };
+    fileRef.current?.click();
+  };
 
   const clientesQ = useQuery({
     queryKey: ["clientes"],
