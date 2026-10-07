@@ -1,11 +1,31 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { createClient } from "@supabase/supabase-js";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL, supabase } from "@/integrations/supabase/client";
 import { useAuth, useRole } from "@/hooks/useAuth";
 import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { EmptyState, ErrorState, LoadingList } from "@/components/States";
 import { fmtDate } from "@/lib/format";
+
+// Cliente sem persistência de sessão: cria o usuário sem deslogar o admin.
+const signupClient = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  auth: { persistSession: false, autoRefreshToken: false },
+});
+
+const novoUsuarioSchema = z.object({
+  nome: z.string().trim().min(2, "Informe o nome").max(100),
+  email: z.string().trim().email("E-mail inválido").max(255),
+  password: z.string().min(6, "Mínimo de 6 caracteres").max(100),
+});
 
 export const Route = createFileRoute("/_authenticated/admin/usuarios")({
   head: () => ({
