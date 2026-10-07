@@ -54,7 +54,8 @@ const schema = z.object({
   titulo: z.string().trim().min(1, "Informe um título").max(200),
   descricao: z.string().trim().max(2000).optional(),
   prioridade: z.enum(["baixa", "normal", "urgente"]),
-  data_necessaria: z.string().optional(),
+  prazo_compra: z.string().min(1, "Informe o prazo para efetivar a compra"),
+  data_necessaria: z.string().min(1, "Informe o prazo para o item chegar"),
   itens: z.array(itemSchema).min(1, "Adicione pelo menos 1 item"),
 });
 type FormValues = z.infer<typeof schema>;
@@ -168,6 +169,7 @@ function NovaSolicitacao() {
           descricao: v.descricao || null,
           prioridade: v.prioridade,
           data_necessaria: v.data_necessaria || null,
+          prazo_compra: v.prazo_compra || null,
           area_m2: extra.area_m2,
           prazo_obra: extra.prazo_obra,
           extracao_id: extra.extracao_id,
@@ -282,8 +284,14 @@ function NovaSolicitacao() {
             )} />
           </div>
           <div className="space-y-1.5">
-            <Label>Data necessária na obra</Label>
+            <Label>Prazo para efetivar a compra *</Label>
+            <Input type="date" {...form.register("prazo_compra")} />
+            {form.formState.errors.prazo_compra && <p className="text-xs text-destructive">{form.formState.errors.prazo_compra.message}</p>}
+          </div>
+          <div className="space-y-1.5">
+            <Label>Prazo para o item chegar na obra *</Label>
             <Input type="date" {...form.register("data_necessaria")} />
+            {form.formState.errors.data_necessaria && <p className="text-xs text-destructive">{form.formState.errors.data_necessaria.message}</p>}
           </div>
         </div>
       </Section>
