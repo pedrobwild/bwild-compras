@@ -90,10 +90,11 @@ const SCHEMA = {
         items: {
           type: "object",
           additionalProperties: false,
-          required: ["descricao", "motivo", "referencia_projeto"],
+          required: ["descricao", "motivo", "ambiente", "referencia_projeto"],
           properties: {
             descricao: { type: "string" },
             motivo: { type: "string" },
+            ambiente: { type: ["string", "null"], description: "Cozinha | Banho | Dormitório/Estar | Terraço | Área de serviço | Área técnica | Geral | null se incerto" },
             referencia_projeto: { type: ["string", "null"] },
           },
         },
@@ -201,6 +202,69 @@ function recuperarFornecimentoBwild(res: { itens: Item[]; nao_comprar: { descric
   res.nao_comprar = manter;
 }
 
+// Rede de segurança: "não comprar" não pode contradizer a lista de compra no mesmo ambiente.
+// Só peças únicas por ambiente (revestimento/piso podem ser parte aproveitada e parte nova no mesmo ambiente)
+const PECAS = ["bancada", "cuba", "torneira", "bit", "soleira", "porta", "box", "chuveiro", "bacia", "vaso", "tanque"];
+const norm = (t: string | null | undefined) => (t ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+function ambienteCanonico(a: string | null | undefined): string | null {
+  const t = norm(a);
+  if (!t) return null;
+  if (/banh|lavabo|wc/.test(t)) return "Banho";
+  if (/cozinha|pia/.test(t)) return "Cozinha";
+  if (/dormit|quarto|estar|sala|living/.test(t)) return "Dormitório/Estar";
+  if (/servi|lavanderia/.test(t)) return "Área de serviço";
+  if (/tecnica/.test(t)) return "Área técnica";
+  if (/terra|varanda|sacada/.test(t)) return "Terraço";
+  return a ?? null;
+}
+function revisarNaoComprar(res: { itens: Item[]; nao_comprar: { descricao: string; motivo: string; ambiente?: string | null; referencia_projeto: string | null }[]; avisos: string[] }) {
+  for (const n of res.nao_comprar) {
+    // ambiente que a IA deixou entre parênteses na descrição vai para o campo
+    const par = n.descricao.match(/\s*\(([^)]*)\)\s*$/);
+    if (par && ambienteCanonico(par[1]) && ambienteCanonico(par[1]) !== par[1]) {
+      n.ambiente = n.ambiente ?? ambienteCanonico(par[1]);
+      n.descricao = n.descricao.slice(0, par.index).trim();
+    }
+    n.ambiente = ambienteCanonico(n.ambiente);
+    if (!n.ambiente) continue;
+    const pecasN = PECAS.filter((p) => norm(n.descricao).includes(p));
+    if (!pecasN.length) continue;
+    const conflitos = res.itens.filter((i) => ambienteCanonico(i.ambiente) === n.ambiente && i.categoria !== "Marcenaria" && pecasN.some((p) => norm(i.descricao).includes(p)));
+    if (conflitos.length) {
+      res.avisos.push(`Conferir na planta: "${n.descricao}" foi marcado para aproveitar no ambiente ${n.ambiente}, mas o projeto também pede ${conflitos.map((c) => c.descricao).slice(0, 3).join(", ")} nesse ambiente. Confirme em qual ambiente é o aproveitamento.`);
+      n.motivo = `${n.motivo} — conferir ambiente na planta`;
+      n.ambiente = null;
+    }
+  }
+  // Remove repetidos: mesmo conteúdo (ou contido em outro) no mesmo ambiente
+  const IGNORAR = new Set(["aproveitamento", "aproveitar", "existente", "existentes", "entregue", "entregues", "construtora", "pela", "todos", "todas", "conforme", "manter", "area", "para"]);
+  const chave = (t: string) => new Set(norm(t).replace(/^[a-z/ ]+:\s*/, "").split(/[^a-z0-9]+/).filter((w) => w.length > 2 && !IGNORAR.has(w)));
+  const lista = res.nao_comprar;
+  const remover = new Set<number>();
+  lista.forEach((n, i) => {
+    const kn = chave(n.descricao);
+    lista.forEach((m, j) => {
+      if (i === j || remover.has(j) || remover.has(i)) return;
+      const km = chave(m.descricao);
+      const contido = [...kn].every((w) => km.has(w));
+      const mesmoAmb = !n.ambiente || !m.ambiente || n.ambiente === m.ambiente;
+      // n está contido em m: remove n (em empate, mantém o que tem ambiente)
+      if (contido && mesmoAmb && (kn.size < km.size || (kn.size === km.size && (!n.ambiente || i > j) && !(n.ambiente && !m.ambiente)))) remover.add(i);
+      // mesma nota repetida em ambientes diferentes: a IA não vê para onde aponta a seta da prancha → 1 registro, ambiente a conferir
+      else if (contido && !mesmoAmb && kn.size === km.size && i > j) {
+        remover.add(i);
+        if (m.ambiente) {
+          m.motivo = `${m.motivo} — a nota aparece em mais de um ponto da planta; conferir os ambientes`;
+          m.ambiente = null;
+        }
+      }
+    });
+  });
+  res.nao_comprar = lista.filter((_, i) => !remover.has(i));
+  // Mostra o ambiente na própria descrição, para quem lê a lista
+  for (const n of res.nao_comprar) if (n.ambiente && !norm(n.descricao).startsWith(norm(n.ambiente))) n.descricao = `${n.ambiente}: ${n.descricao}`;
+}
+
 const INSTRUCOES = `Você é comprador técnico sênior de uma empresa de reformas de interiores (apartamentos compactos em São Paulo).
 Recebe o TEXTO extraído de um projeto executivo em PDF, página por página ("FOLHA NN"). O texto vem de pranchas técnicas: fragmentado, com cotas soltas e legendas quebradas em várias linhas. Reconstrua o sentido.
 
@@ -209,7 +273,14 @@ TAREFA: montar a lista de compras da obra para a equipe de Compras validar.
 REGRAS
 1. Liste somente o que precisa ser COMPRADO ou CONTRATADO para executar o projeto: acabamentos (tinta, revestimento, piso, rodapé, rejunte), louças, metais, bancadas/pedras, soleiras, bits, iluminação, materiais elétricos citados (tomadas, interruptores, caixas), infraestrutura citada (tubulação frigorígena, mangueira, tubo), box/vidros, portas e kits, eletrodomésticos, ar-condicionado, mobiliário, colchão, cortinas, fechadura, acessórios de banheiro, decoração e MARCENARIA.
 2. MARCENARIA = UM ÚNICO ITEM. Não liste móvel a móvel. Gere exatamente 1 item com descricao "Marcenaria", categoria "Marcenaria", quantidade 1, unidade "vb", ambiente "Geral" (ou o único ambiente, se houver só um). Na especificacao, resuma em uma ou duas frases os ambientes atendidos, os padrões/acabamentos (ex.: Sampa, Carvalho Xingu, Branco TXT — padrão Casa Azul) e as ferragens especiais (sistema Krok, Tip-on, puxadores, cabideiro). Em referencia_projeto, liste as folhas de marcenaria (ex.: "Folhas 14 a 17 – Marcenaria"). Ferragens, puxadores, painéis, nichos, carenagens em MDF e qualquer outro componente executado pelo marceneiro fazem parte desse item e NÃO viram itens separados (nem na categoria "Ferragens"). Use "Ferragens" só para ferragens compradas à parte, fora da marcenaria.
-3. NÃO coloque em "itens" o que o projeto diz para manter ou aproveitar ("existente", "aproveitamento", "entregue pela construtora", "manter"). Coloque esses em "nao_comprar" com o motivo.
+3. NÃO coloque em "itens" o que o projeto diz para manter ou aproveitar ("existente", "aproveitamento", "entregue pela construtora", "manter"). Coloque esses em "nao_comprar" com o motivo e o AMBIENTE.
+   AMBIENTE EM "nao_comprar" — o texto vem de prancha e fica embaralhado: um nome de ambiente ou "VISTA NN" logo antes/depois de uma nota NÃO indica onde a nota está. Decida o ambiente pelo conteúdo:
+   - "REMOÇÃO DE X" ou "NOVO/NOVA X" = X será substituído/comprado naquele ambiente; não é aproveitamento.
+   - Se o projeto pede X novo em um ambiente (ex.: "NOVA BANCADA, CUBA E TORNEIRA PARA BANHEIRO") e também fala em aproveitar X, o aproveitamento é de OUTRO ambiente. Nunca registre em "nao_comprar" algo que você colocou em "itens" para o mesmo ambiente.
+   - Bancada de pia com cuba e torneira fora do banheiro é da Cozinha (em studios a cozinha fica integrada à sala/dormitório).
+   - Se não der para saber o ambiente com segurança, use ambiente null.
+   - Escreva a descricao sem nome de ambiente entre parênteses; o ambiente vai no campo próprio.
+   - Se a mesma nota aparece mais de uma vez no texto, registre uma única vez (com ambiente null se não tiver certeza).
    ATENÇÃO: a Bwild é a empresa que executa a obra e faz as compras. "FORNECIMENTO BWILD" e "CORTESIA BWILD" significam que a BWILD COMPRA o item — eles SEMPRE vão em "itens" (nunca em "nao_comprar"), com observacao "Fornecimento Bwild" ou "Cortesia Bwild".
 4. Quantidade: use a do projeto (quadros de revestimento, tomadas, luminárias, "02 unidades", "TOTAL PARA COMPRA"). Para revestimento/piso prefira a quantidade que já inclui quebra. Pintura: informe a área em m² na especificação e quantidade em m² se constar. Se não houver quantidade, use null e confianca "media" ou "baixa".
 5. especificacao: marca, linha, modelo, cor, dimensões, voltagem, potência, temperatura de cor. Copie exatamente do projeto.
@@ -282,6 +353,8 @@ Deno.serve(async (req) => {
     resultado.nao_comprar = resultado.nao_comprar ?? [];
     recuperarFornecimentoBwild(resultado);
     resultado.itens = consolidarMarcenaria(resultado.itens);
+    resultado.avisos = resultado.avisos ?? [];
+    revisarNaoComprar(resultado);
     if (truncado) resultado.avisos.unshift("O projeto é muito extenso; parte final do texto não foi lida. Confira as últimas folhas.");
 
     const uso = { tokens_entrada: data.usage?.prompt_tokens ?? null, tokens_saida: data.usage?.completion_tokens ?? null };
