@@ -1,8 +1,11 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { differenceInCalendarDays, parseISO, subDays } from "date-fns";
 import { AlertTriangle, UserX } from "lucide-react";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import { usePainel } from "@/hooks/usePainel";
 import { useRole } from "@/hooks/useAuth";
 import { PrioridadeBadge } from "@/components/badges";
@@ -33,8 +36,23 @@ const COLS: { key: Status; dot: string }[] = [
 function Fila() {
   const { isCompras, loading } = useRole();
   const { data, isLoading, error } = usePainel();
+  const qc = useQueryClient();
   const [visao, setVisao] = useState<"status" | "cliente">("status");
   const [cliente, setCliente] = useState("todos");
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overCol, setOverCol] = useState<string | null>(null);
+
+  const moverPara = async (id: string, status: Status) => {
+    const row = (data ?? []).find((r) => r.id === id);
+    if (!row || row.status === status) return;
+    const { error: err } = await supabase.from("solicitacoes").update({ status }).eq("id", id);
+    if (err) {
+      toast.error(`Não foi possível mover: ${err.message}`);
+      return;
+    }
+    toast.success(`${row.codigo} movido para ${STATUS[status].label}`);
+    qc.invalidateQueries({ queryKey: ["painel"] });
+  };
 
   if (!loading && !isCompras) return <EmptyState title="Esta área é exclusiva da equipe de Compras." />;
   if (isLoading) return <LoadingList />;
@@ -81,8 +99,15 @@ function Fila() {
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         {colunas.map((c) => {
           const list = c.list;
+          const dropAtivo = visao === "status";
           return (
-            <div key={c.key} className="flex flex-col rounded-lg bg-muted/60 p-3">
+            <div
+              key={c.key}
+              onDragOver={dropAtivo ? (e) => { e.preventDefault(); setOverCol(c.key); } : undefined}
+              onDragLeave={dropAtivo ? () => setOverCol((o) => (o === c.key ? null : o)) : undefined}
+              onDrop={dropAtivo ? (e) => { e.preventDefault(); setOverCol(null); if (dragId) moverPara(dragId, c.key as Status); setDragId(null); } : undefined}
+              className={cn("flex flex-col rounded-lg bg-muted/60 p-3 transition-colors", dropAtivo && overCol === c.key && "ring-2 ring-accent bg-accent/10")}
+            >
               <div className="mb-3 flex items-center gap-2 px-1">
                 <span className={cn("h-2.5 w-2.5 rounded-full", c.dot)} />
                 <h2 className="truncate text-sm font-semibold">{c.titulo}</h2>
@@ -90,7 +115,9 @@ function Fila() {
               </div>
               <div className="space-y-2">
                 {list.length === 0 && <p className="px-1 py-4 text-center text-xs text-muted-foreground">Vazio</p>}
-                {list.map((r) => <KCard key={r.id} r={r} porCliente={visao === "cliente"} />)}
+                {list.map((r) => (
+                  <KCard key={r.id} r={r} porCliente={visao === "cliente"} draggable={dropAtivo} dragging={dragId === r.id} onDragStart={() => setDragId(r.id)} onDragEnd={() => { setDragId(null); setOverCol(null); }} />
+                ))}
               </div>
             </div>
           );
@@ -100,13 +127,16 @@ function Fila() {
   );
 }
 
-function KCard({ r, porCliente }: { r: PainelRow; porCliente?: boolean }) {
+function KCard({ r, porCliente, draggable, dragging, onDragStart, onDragEnd }: { r: PainelRow; porCliente?: boolean; draggable?: boolean; dragging?: boolean; onDragStart?: () => void; onDragEnd?: () => void }) {
   const dias = differenceInCalendarDays(new Date(), parseISO(r.created_at));
   return (
     <Link
       to="/solicitacoes/$id"
       params={{ id: r.id }}
-      className={cn("block rounded-md border bg-card p-3 shadow-sm transition-shadow hover:shadow-md", r.atrasada && "border-destructive/60")}
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      className={cn("block rounded-md border bg-card p-3 shadow-sm transition-shadow hover:shadow-md", r.atrasada && "border-destructive/60", draggable && "cursor-grab active:cursor-grabbing", dragging && "opacity-40")}
     >
       <div className="flex items-center justify-between text-xs">
         <span className="font-medium text-muted-foreground">{r.codigo}</span>
