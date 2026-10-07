@@ -136,6 +136,24 @@ function NovaSolicitacao() {
     if (autoLer && novosPdf.length && !leitura.ocupado) leitura.ler(novosPdf[0].file, novosPdf[0].file.name);
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const onInvalid = (errs: any) => {
+    const itensErr = (errs.itens ?? []) as ({ quantidade?: unknown; descricao?: unknown } | undefined)[];
+    const semQtd = Array.isArray(itensErr) ? itensErr.filter((x) => x?.quantidade).length : 0;
+    toast.error(semQtd ? `Há ${semQtd} ${semQtd === 1 ? "item" : "itens"} sem quantidade` : "Revise os campos destacados");
+    const ordem = ["cliente", "titulo"] as const;
+    for (const k of ordem) if (errs[k]) return form.setFocus(k);
+    if (Array.isArray(itensErr)) {
+      const idx = itensErr.findIndex((x) => x);
+      if (idx >= 0) {
+        const campo = itensErr[idx]?.descricao ? "descricao" : "quantidade";
+        const el = document.querySelector<HTMLElement>(`[name="itens.${idx}.${campo}"]`);
+        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+        el?.focus({ preventScroll: true });
+      }
+    }
+  };
+
   const onSubmit = async (v: FormValues) => {
     setSaving(true);
     try {
@@ -202,7 +220,7 @@ function NovaSolicitacao() {
   };
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="mx-auto max-w-4xl space-y-5">
+    <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="mx-auto max-w-4xl space-y-5">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Nova solicitação</h1>
         <p className="text-sm text-muted-foreground">Descreva o que a obra precisa. Compras recebe na hora.</p>
@@ -294,7 +312,7 @@ function NovaSolicitacao() {
         {leitura.element}
       </Section>
 
-      <div className="sticky bottom-16 z-10 flex justify-end gap-2 rounded-lg border bg-card/95 p-3 backdrop-blur lg:bottom-4">
+      <div className="sticky bottom-16 z-10 flex justify-end gap-2 rounded-lg border bg-card/95 p-3 backdrop-blur lg:bottom-4 lg:pr-40">
         <Button type="button" variant="ghost" onClick={() => navigate({ to: "/painel" })}>Cancelar</Button>
         <Button type="submit" disabled={saving}>{saving ? "Enviando…" : "Enviar para Compras"}</Button>
       </div>
@@ -341,7 +359,7 @@ function ItemCard({ form, i, err, podeRemover, onRemove }: { form: any; i: numbe
           {origem === "projeto_executivo" && <span className="rounded border border-accent/40 bg-accent/10 px-1.5 py-0.5 text-[10px] text-accent">do projeto</span>}
         </span>
         {podeRemover && (
-          <button type="button" aria-label="Remover item" onClick={onRemove} className="flex h-9 w-9 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-destructive">
+          <button type="button" aria-label={`Remover item ${i + 1}`} title="Remover item" onClick={onRemove} className="flex h-9 w-9 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-destructive">
             <Trash2 className="h-4 w-4" />
           </button>
         )}
@@ -407,7 +425,7 @@ function ItemCard({ form, i, err, podeRemover, onRemove }: { form: any; i: numbe
             <div className="flex gap-1">
               <Input placeholder="https://" {...form.register(`itens.${i}.link_referencia`)} />
               {/^https?:\/\//i.test(link) && (
-                <a href={link} target="_blank" rel="noopener noreferrer" aria-label="Abrir link" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border hover:bg-muted"><ExternalLink className="h-4 w-4" /></a>
+                <a href={link} target="_blank" rel="noopener noreferrer" aria-label="Abrir link" title="Abrir link em nova aba" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border hover:bg-muted"><ExternalLink className="h-4 w-4" /></a>
               )}
             </div>
           </div>

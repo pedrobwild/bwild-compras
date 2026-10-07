@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AlertTriangle, ChevronDown, ChevronRight, Copy, ExternalLink, Plus, Search, Trash2, X, Loader2, FileSearch } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -26,6 +26,7 @@ export interface VItem {
   observacao: string;
   confianca: Confianca;
   revisado: boolean;
+  manual?: boolean;
 }
 
 export interface ObraEditavel {
@@ -54,7 +55,17 @@ interface Rascunho {
   naoComprar: ResultadoExtracao["resultado"]["nao_comprar"];
 }
 
-const uid = () => Math.random().toString(36).slice(2, 10);
+const uid = () =>
+  typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+/** Garante id único e estável em cada item (rascunhos antigos podem não ter). */
+const comIds = (itens: VItem[]) => {
+  const vistos = new Set<string>();
+  return itens.map((i) => {
+    const key = i.key && !vistos.has(i.key) ? i.key : uid();
+    vistos.add(key);
+    return { ...i, key };
+  });
+};
 const draftKey = (nome: string) => `bwild-validacao:${nome}`;
 export const limparRascunho = (nome: string) => {
   try { localStorage.removeItem(draftKey(nome)); } catch { /* ignore */ }
@@ -151,11 +162,12 @@ export function useLeituraProjeto(onApply: (v: ValidacaoAplicada, nomeArquivo: s
 
 /* ------------------------------------------------------------------ */
 
-const CONF: Record<Confianca | "revisado", { label: string; cls: string }> = {
+const CONF: Record<Confianca | "revisado" | "manual", { label: string; cls: string }> = {
   alta: { label: "Alta", cls: "border-status-entregue/40 bg-status-entregue/10 text-status-entregue" },
   media: { label: "Revisar", cls: "border-status-cotacao/40 bg-status-cotacao/15 text-status-cotacao" },
   baixa: { label: "Revisar com atenção", cls: "border-destructive/40 bg-destructive/10 text-destructive" },
   revisado: { label: "Revisado", cls: "border-border bg-muted text-muted-foreground" },
+  manual: { label: "Manual", cls: "border-border bg-muted text-muted-foreground" },
 };
 
 export function ValidacaoProjeto({
@@ -171,7 +183,7 @@ export function ValidacaoProjeto({
       const raw = localStorage.getItem(draftKey(nomeArquivo));
       if (raw) {
         const r = JSON.parse(raw) as Rascunho;
-        if (r.extracao_id === resultado.extracao_id) return r;
+        if (r.extracao_id === resultado.extracao_id) return { ...r, itens: comIds(r.itens ?? []) };
       }
     } catch { /* ignore */ }
     return inicial(resultado);
@@ -213,7 +225,7 @@ export function ValidacaoProjeto({
   const adicionar = () => {
     const it: VItem = {
       key: uid(), descricao: "", categoria: fCat !== "todas" ? fCat : "Outros", quantidade: "", unidade: "un", ambiente: fAmb !== "todos" ? fAmb : "",
-      especificacao: "", referencia_projeto: "", link_referencia: "", observacao: "", confianca: "alta", revisado: false,
+      especificacao: "", referencia_projeto: "", link_referencia: "", observacao: "", confianca: "alta", revisado: false, manual: true,
     };
     setD((p) => ({ ...p, itens: [it, ...p.itens] }));
     setBusca("");
@@ -257,7 +269,7 @@ export function ValidacaoProjeto({
         area_m2: parseQtd(d.obra.area_m2),
         prazo_obra: d.obra.prazo_obra.trim() || null,
         avisos: d.avisos.filter((a) => a.trim()),
-        itens: d.itens.map(({ key: _k, confianca: _c, revisado: _r, quantidade, ...rest }) => ({ ...rest, quantidade: parseQtd(quantidade) })),
+        itens: d.itens.map(({ key: _k, confianca: _c, revisado: _r, manual: _m, quantidade, ...rest }) => ({ ...rest, quantidade: parseQtd(quantidade) })),
       });
     } finally {
       setAplicando(false);
@@ -307,7 +319,7 @@ export function ValidacaoProjeto({
               {d.avisos.map((a, i) => (
                 <li key={i} className="flex items-start gap-2">
                   <Textarea rows={1} value={a} className="min-h-9 flex-1 resize-none bg-card text-sm field-sizing-content" onChange={(e) => setD((p) => ({ ...p, avisos: p.avisos.map((x, j) => (j === i ? e.target.value : x)) }))} />
-                  <button type="button" aria-label="Excluir aviso" className="flex h-9 w-9 items-center justify-center rounded hover:bg-card" onClick={() => setD((p) => ({ ...p, avisos: p.avisos.filter((_, j) => j !== i) }))}><X className="h-4 w-4" /></button>
+                  <button type="button" aria-label="Excluir aviso" title="Excluir aviso" className="flex h-9 w-9 items-center justify-center rounded hover:bg-card" onClick={() => setD((p) => ({ ...p, avisos: p.avisos.filter((_, j) => j !== i) }))}><X className="h-4 w-4" /></button>
                 </li>
               ))}
             </ul>
@@ -365,7 +377,7 @@ export function ValidacaoProjeto({
                   <div key={cat} className="rounded-md border">
                     <div className="flex items-center gap-2 bg-muted/60 px-3 py-2">
                       <Checkbox aria-label={`Selecionar ${cat}`} checked={todos} onCheckedChange={(v) => setSel((s) => { const n = new Set(s); list.forEach((i) => (v ? n.add(i.key) : n.delete(i.key))); return n; })} />
-                      <button type="button" className="flex min-h-9 flex-1 items-center gap-1.5 text-left text-sm font-semibold" onClick={() => setFechados((s) => { const n = new Set(s); if (n.has(cat)) n.delete(cat); else n.add(cat); return n; })}>
+                      <button type="button" aria-expanded={aberto} aria-label={`${aberto ? "Recolher" : "Expandir"} grupo ${cat}`} title={aberto ? "Recolher grupo" : "Expandir grupo"} className="flex min-h-9 flex-1 items-center gap-1.5 text-left text-sm font-semibold" onClick={() => setFechados((s) => { const n = new Set(s); if (n.has(cat)) n.delete(cat); else n.add(cat); return n; })}>
                         {aberto ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />} {cat}
                         <span className="font-normal text-muted-foreground">({list.length})</span>
                       </button>
@@ -416,7 +428,7 @@ export function ValidacaoProjeto({
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 border-t bg-card px-4 py-3 md:px-6">
+        <div className="flex flex-wrap items-center gap-2 border-t bg-card px-4 py-3 md:px-6 lg:pr-40">
           <span className="mr-auto text-sm"><strong className="tabular-nums">{d.itens.length}</strong> itens serão adicionados</span>
           <Button type="button" variant="ghost" onClick={() => { limparRascunho(nomeArquivo); onClose(); }}>Descartar leitura</Button>
           <Button type="button" onClick={aplicar} disabled={aplicando}>{aplicando ? "Aplicando…" : "Aplicar à solicitação"}</Button>
@@ -429,17 +441,16 @@ export function ValidacaoProjeto({
 function ItemLinha({ i, selecionado, onSel, onChange, onDup, onDel }: {
   i: VItem; selecionado: boolean; onSel: (v: boolean) => void; onChange: (p: Partial<VItem>) => void; onDup: () => void; onDel: () => void;
 }) {
-  const conf = CONF[i.revisado ? "revisado" : i.confianca];
+  const conf = CONF[i.manual ? "manual" : i.revisado ? "revisado" : i.confianca];
   const semQtd = parseQtd(i.quantidade) == null;
-  const taRef = useRef<HTMLTextAreaElement>(null);
   return (
     <div className={cn("space-y-2 p-3", i.confianca === "baixa" && !i.revisado && "bg-destructive/5")}>
       <div className="flex items-center gap-2">
         <Checkbox aria-label="Selecionar item" checked={selecionado} onCheckedChange={(v) => onSel(!!v)} />
         <span className={cn("rounded border px-1.5 py-0.5 text-[11px] font-medium", conf.cls)}>{conf.label}</span>
         <div className="ml-auto flex">
-          <button type="button" aria-label="Duplicar item" onClick={onDup} className="flex h-9 w-9 items-center justify-center rounded text-muted-foreground hover:bg-muted"><Copy className="h-4 w-4" /></button>
-          <button type="button" aria-label="Excluir item" onClick={onDel} className="flex h-9 w-9 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-destructive"><Trash2 className="h-4 w-4" /></button>
+          <button type="button" aria-label="Duplicar item" title="Duplicar item" onClick={onDup} className="flex h-9 w-9 items-center justify-center rounded text-muted-foreground hover:bg-muted"><Copy className="h-4 w-4" /></button>
+          <button type="button" aria-label="Excluir item" title="Excluir item" onClick={onDel} className="flex h-9 w-9 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-destructive"><Trash2 className="h-4 w-4" /></button>
         </div>
       </div>
       <div className="grid gap-2 sm:grid-cols-6 lg:grid-cols-12">
@@ -474,7 +485,7 @@ function ItemLinha({ i, selecionado, onSel, onChange, onDup, onDel }: {
         </div>
         <div className="space-y-1 sm:col-span-6 lg:col-span-5">
           <Label className="text-xs">Especificação</Label>
-          <Textarea ref={taRef} rows={1} value={i.especificacao} className="min-h-10 resize-none field-sizing-content" onChange={(e) => onChange({ especificacao: e.target.value })} />
+          <Textarea rows={1} value={i.especificacao} className="min-h-10 resize-none field-sizing-content" onChange={(e) => onChange({ especificacao: e.target.value })} />
         </div>
         <div className="space-y-1 sm:col-span-3 lg:col-span-2">
           <Label className="text-xs">Folha/referência</Label>
@@ -485,7 +496,7 @@ function ItemLinha({ i, selecionado, onSel, onChange, onDup, onDel }: {
           <div className="flex gap-1">
             <Input value={i.link_referencia} placeholder="https://" onChange={(e) => onChange({ link_referencia: e.target.value })} />
             {/^https?:\/\//i.test(i.link_referencia) && (
-              <a href={i.link_referencia} target="_blank" rel="noopener noreferrer" aria-label="Abrir link" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border hover:bg-muted"><ExternalLink className="h-4 w-4" /></a>
+              <a href={i.link_referencia} target="_blank" rel="noopener noreferrer" aria-label="Abrir link" title="Abrir link em nova aba" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border hover:bg-muted"><ExternalLink className="h-4 w-4" /></a>
             )}
           </div>
         </div>

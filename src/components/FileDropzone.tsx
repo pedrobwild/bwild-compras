@@ -75,7 +75,7 @@ export function FileDropzone({
                   <p className="text-xs text-muted-foreground">{fmtBytes(pf.file.size)}</p>
                 </div>
                 {!disabled && (
-                  <button type="button" aria-label="Remover" onClick={() => onChange(files.filter((_, j) => j !== i))} className="rounded p-1 hover:bg-muted">
+                  <button type="button" aria-label={`Remover ${pf.file.name}`} title="Remover anexo" onClick={() => onChange(files.filter((_, j) => j !== i))} className="rounded p-1 hover:bg-muted">
                     <X className="h-4 w-4" />
                   </button>
                 )}
