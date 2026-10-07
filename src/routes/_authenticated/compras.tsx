@@ -127,13 +127,16 @@ function Fila() {
   );
 }
 
-function KCard({ r, porCliente }: { r: PainelRow; porCliente?: boolean }) {
+function KCard({ r, porCliente, draggable, dragging, onDragStart, onDragEnd }: { r: PainelRow; porCliente?: boolean; draggable?: boolean; dragging?: boolean; onDragStart?: () => void; onDragEnd?: () => void }) {
   const dias = differenceInCalendarDays(new Date(), parseISO(r.created_at));
   return (
     <Link
       to="/solicitacoes/$id"
       params={{ id: r.id }}
-      className={cn("block rounded-md border bg-card p-3 shadow-sm transition-shadow hover:shadow-md", r.atrasada && "border-destructive/60")}
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      className={cn("block rounded-md border bg-card p-3 shadow-sm transition-shadow hover:shadow-md", r.atrasada && "border-destructive/60", draggable && "cursor-grab active:cursor-grabbing", dragging && "opacity-40")}
     >
       <div className="flex items-center justify-between text-xs">
         <span className="font-medium text-muted-foreground">{r.codigo}</span>
