@@ -219,3 +219,41 @@ function KCard({ r, porCliente, draggable, dragging, onDragStart, onDragEnd }: {
     </Link>
   );
 }
+
+function RangePicker({ label, value, onChange }: { label: string; value: DateRange | undefined; onChange: (r: DateRange | undefined) => void }) {
+  const [open, setOpen] = useState(false);
+  const texto = value?.from
+    ? `${format(value.from, "dd/MM/yy", { locale: ptBR })} — ${value.to ? format(value.to, "dd/MM/yy", { locale: ptBR }) : "…"}`
+    : label;
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" className={cn("min-h-9 justify-start font-normal", !value?.from && "text-muted-foreground")}>
+          <CalendarIcon className="h-4 w-4" />
+          {texto}
+          {value?.from && (
+            <button
+              type="button"
+              aria-label={`Limpar ${label.toLowerCase()}`}
+              title={`Limpar ${label.toLowerCase()}`}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onChange(undefined); }}
+              className="ml-1 rounded-full p-0.5 hover:bg-muted"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          mode="range"
+          selected={value}
+          onSelect={(r) => { onChange(r); if (r?.from && r?.to) setOpen(false); }}
+          numberOfMonths={1}
+          locale={ptBR}
+          className="p-3 pointer-events-auto"
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
