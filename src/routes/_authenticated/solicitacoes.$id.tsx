@@ -25,7 +25,7 @@ import { signedUrl, uploadAnexo } from "@/lib/upload";
 import { AMBIENTES, CATEGORIAS, UNIDADES, STATUS, STATUS_KEYS, fmtBRL, fmtBytes, fmtDate, type Prioridade, type Status } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useLeituraProjeto, type ValidacaoAplicada } from "@/components/ValidacaoProjeto";
-import { FileSearch } from "lucide-react";
+import { FileSearch, Send, ShieldCheck } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/solicitacoes/$id")({
   head: () => ({
