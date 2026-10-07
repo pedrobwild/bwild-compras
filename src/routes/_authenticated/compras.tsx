@@ -49,6 +49,18 @@ function Fila() {
   const [cliente, setCliente] = useState("todos");
   const [dragId, setDragId] = useState<string | null>(null);
   const [overCol, setOverCol] = useState<string | null>(null);
+  const [compraRange, setCompraRange] = useState<DateRange | undefined>();
+  const [entregaRange, setEntregaRange] = useState<DateRange | undefined>();
+
+  // Datas de compra/entrega vêm direto da tabela compras (a view não expõe data_compra)
+  const { data: comprasDatas } = useQuery({
+    queryKey: ["compras-datas-fila"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("compras").select("solicitacao_id, data_compra, previsao_entrega");
+      if (error) throw error;
+      return (data ?? []) as { solicitacao_id: string; data_compra: string | null; previsao_entrega: string | null }[];
+    },
+  });
 
   const moverPara = async (id: string, status: Status) => {
     const row = (data ?? []).find((r) => r.id === id);
