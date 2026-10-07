@@ -97,37 +97,22 @@ function Fila() {
     });
     return map;
   }, [comprasDatas]);
-  const bateNoPeriodo = (id: string, range: DateRange | undefined) => {
+  const bateNoPeriodo = (id: string, range: DateRange | undefined, campo: "data_compra" | "previsao_entrega") => {
     if (!range?.from) return true;
     const start = startOfDay(range.from);
     const end = startOfDay(range.to ?? range.from);
     const datas = comprasPorSolic.get(id) ?? [];
     return datas.some((c) => {
-      const raw = c.data_compra ?? c.previsao_entrega; // nunca deve cair aqui, mas evita falso positivo
-      return false || datas.some((cc) => {
-        const d = cc.data_compra ?? null;
-        if (!d) return false;
-        const date = d.length === 10 ? parseISO(d + "T12:00:00") : parseISO(d);
-        return isWithinInterval(date, { start, end });
-      });
-    });
-  };
-  const bateEntrega = (id: string, range: DateRange | undefined) => {
-    if (!range?.from) return true;
-    const start = startOfDay(range.from);
-    const end = startOfDay(range.to ?? range.from);
-    const datas = comprasPorSolic.get(id) ?? [];
-    return datas.some((c) => {
-      if (!c.previsao_entrega) return false;
-      const d = c.previsao_entrega;
+      const d = c[campo];
+      if (!d) return false;
       const date = d.length === 10 ? parseISO(d + "T12:00:00") : parseISO(d);
       return isWithinInterval(date, { start, end });
     });
   };
   const rows = base
     .filter((r) => cliente === "todos" || r.cliente === cliente)
-    .filter((r) => bateNoPeriodo(r.id, compraRange))
-    .filter((r) => bateEntrega(r.id, entregaRange));
+    .filter((r) => bateNoPeriodo(r.id, compraRange, "data_compra"))
+    .filter((r) => bateNoPeriodo(r.id, entregaRange, "previsao_entrega"));
   const ordenar = (a: PainelRow, b: PainelRow) => Number(b.atrasada) - Number(a.atrasada) || Number(b.prioridade === "urgente") - Number(a.prioridade === "urgente") || a.created_at.localeCompare(b.created_at);
   const colunas = visao === "status"
     ? COLS.map((c) => ({ key: c.key, titulo: STATUS[c.key].label, dot: c.dot, list: rows.filter((r) => r.status === c.key).sort(ordenar) }))
