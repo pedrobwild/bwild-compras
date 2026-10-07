@@ -1,9 +1,14 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { differenceInCalendarDays, parseISO, subDays } from "date-fns";
-import { AlertTriangle, UserX } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { differenceInCalendarDays, format, isWithinInterval, parseISO, startOfDay, subDays } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { AlertTriangle, Calendar as CalendarIcon, UserX, X } from "lucide-react";
+import type { DateRange } from "react-day-picker";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { usePainel } from "@/hooks/usePainel";
@@ -43,6 +48,18 @@ function Fila() {
   const [cliente, setCliente] = useState("todos");
   const [dragId, setDragId] = useState<string | null>(null);
   const [overCol, setOverCol] = useState<string | null>(null);
+  const [compraRange, setCompraRange] = useState<DateRange | undefined>();
+  const [entregaRange, setEntregaRange] = useState<DateRange | undefined>();
+
+  // Datas de compra/entrega vêm direto da tabela compras (a view não expõe data_compra)
+  const { data: comprasDatas } = useQuery({
+    queryKey: ["compras-datas-fila"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("compras").select("solicitacao_id, data_compra, previsao_entrega");
+      if (error) throw error;
+      return (data ?? []) as { solicitacao_id: string; data_compra: string | null; previsao_entrega: string | null }[];
+    },
+  });
 
   const moverPara = async (id: string, status: Status) => {
     const row = (data ?? []).find((r) => r.id === id);
@@ -69,7 +86,32 @@ function Fila() {
   const limite = subDays(new Date(), 30);
   const base = (data ?? []).filter((r) => r.status !== "cancelada" && (r.status !== "entregue" || parseISO(r.updated_at) >= limite));
   const clientes = Array.from(new Set(base.map((r) => r.cliente))).sort((a, b) => a.localeCompare(b, "pt-BR"));
-  const rows = cliente === "todos" ? base : base.filter((r) => r.cliente === cliente);
+
+  const comprasPorSolic = useMemo(() => {
+    const map = new Map<string, { data_compra: string | null; previsao_entrega: string | null }[]>();
+    (comprasDatas ?? []).forEach((c) => {
+      const list = map.get(c.solicitacao_id) ?? [];
+      list.push(c);
+      map.set(c.solicitacao_id, list);
+    });
+    return map;
+  }, [comprasDatas]);
+  const bateNoPeriodo = (id: string, range: DateRange | undefined, campo: "data_compra" | "previsao_entrega") => {
+    if (!range?.from) return true;
+    const start = startOfDay(range.from);
+    const end = startOfDay(range.to ?? range.from);
+    const datas = comprasPorSolic.get(id) ?? [];
+    return datas.some((c) => {
+      const d = c[campo];
+      if (!d) return false;
+      const date = d.length === 10 ? parseISO(d + "T12:00:00") : parseISO(d);
+      return isWithinInterval(date, { start, end });
+    });
+  };
+  const rows = base
+    .filter((r) => cliente === "todos" || r.cliente === cliente)
+    .filter((r) => bateNoPeriodo(r.id, compraRange, "data_compra"))
+    .filter((r) => bateNoPeriodo(r.id, entregaRange, "previsao_entrega"));
   const ordenar = (a: PainelRow, b: PainelRow) => Number(b.atrasada) - Number(a.atrasada) || Number(b.prioridade === "urgente") - Number(a.prioridade === "urgente") || a.created_at.localeCompare(b.created_at);
   const colunas = visao === "status"
     ? COLS.map((c) => ({ key: c.key, titulo: STATUS[c.key].label, dot: c.dot, list: rows.filter((r) => r.status === c.key).sort(ordenar) }))
@@ -102,6 +144,18 @@ function Fila() {
             {clientes.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
           </SelectContent>
         </Select>
+        <RangePicker label="Data de compra" value={compraRange} onChange={setCompraRange} />
+        <RangePicker label="Data de entrega" value={entregaRange} onChange={setEntregaRange} />
+        {(compraRange || entregaRange) && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="min-h-9 text-muted-foreground"
+            onClick={() => { setCompraRange(undefined); setEntregaRange(undefined); }}
+          >
+            <X className="h-4 w-4" /> Limpar datas
+          </Button>
+        )}
       </div>
       {colunas.length === 0 && <EmptyState title="Nenhuma solicitação na fila." />}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
@@ -162,5 +216,43 @@ function KCard({ r, porCliente, draggable, dragging, onDragStart, onDragEnd }: {
         {r.responsavel_nome && <span className="text-[11px] text-muted-foreground">{r.responsavel_nome}</span>}
       </div>
     </Link>
+  );
+}
+
+function RangePicker({ label, value, onChange }: { label: string; value: DateRange | undefined; onChange: (r: DateRange | undefined) => void }) {
+  const [open, setOpen] = useState(false);
+  const texto = value?.from
+    ? `${format(value.from, "dd/MM/yy", { locale: ptBR })} — ${value.to ? format(value.to, "dd/MM/yy", { locale: ptBR }) : "…"}`
+    : label;
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" className={cn("min-h-9 justify-start font-normal", !value?.from && "text-muted-foreground")}>
+          <CalendarIcon className="h-4 w-4" />
+          {texto}
+          {value?.from && (
+            <button
+              type="button"
+              aria-label={`Limpar ${label.toLowerCase()}`}
+              title={`Limpar ${label.toLowerCase()}`}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onChange(undefined); }}
+              className="ml-1 rounded-full p-0.5 hover:bg-muted"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          mode="range"
+          selected={value}
+          onSelect={(r) => { onChange(r); if (r?.from && r?.to) setOpen(false); }}
+          numberOfMonths={1}
+          locale={ptBR}
+          className="p-3 pointer-events-auto"
+        />
+      </PopoverContent>
+    </Popover>
   );
 }
