@@ -302,8 +302,25 @@ function Detalhe() {
                 </Select>
               </div>
             )}
+            {isCompras && d.itens.length > 1 && (s.status === "nova" || s.status === "em_cotacao") && (
+              <Button variant="outline" size="sm" onClick={dividir} disabled={dividindo} title="Cria um card para cada item e exclui este card" aria-label="Dividir em um card por item">
+                <Split className="h-4 w-4" /> {dividindo ? "Dividindo…" : `Dividir em ${d.itens.length} cards (1 item por card)`}
+              </Button>
+            )}
             <Button variant="outline" size="sm" className="text-destructive" onClick={() => setCancelOpen(true)}>
               <XCircle className="h-4 w-4" /> Cancelar solicitação
+            </Button>
+            {isCompras && (
+              <Button variant="outline" size="sm" className="text-destructive" onClick={excluirCard} title="Excluir este card definitivamente" aria-label="Excluir card">
+                <Trash2 className="h-4 w-4" /> Excluir card
+              </Button>
+            )}
+          </div>
+        )}
+        {isCompras && s.status === "cancelada" && (
+          <div className="mt-5 flex flex-wrap items-center gap-2 border-t pt-4">
+            <Button variant="outline" size="sm" className="text-destructive" onClick={excluirCard} title="Excluir este card definitivamente" aria-label="Excluir card">
+              <Trash2 className="h-4 w-4" /> Excluir card
             </Button>
           </div>
         )}
