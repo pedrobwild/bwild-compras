@@ -159,9 +159,10 @@ function Detalhe() {
     if (!window.confirm(`Dividir ${s.codigo} em ${d.itens.length} cards (1 item por card)? O card original será excluído.`)) return;
     setDividindo(true);
     try {
+      // Não inclui prazo_compra: a coluna só existe depois de rodar prazos_compra.sql no banco.
       const base = {
         cliente: s.cliente, empreendimento: s.empreendimento, unidade: s.unidade, endereco_obra: s.endereco_obra,
-        descricao: s.descricao, prioridade: s.prioridade, data_necessaria: s.data_necessaria, prazo_compra: s.prazo_compra ?? null,
+        descricao: s.descricao, prioridade: s.prioridade, data_necessaria: s.data_necessaria,
       };
       const criadas: string[] = [];
       for (const it of d.itens) {
