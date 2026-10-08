@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Check, Pencil, Plus, Trash2, Trophy } from "lucide-react";
+import { Check, FileText, Image as ImageIcon, Paperclip, Pencil, Plus, Trash2, Trophy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EmptyState, ErrorState, LoadingList } from "@/components/States";
 import { fmtBRL, fmtDate, maskBRL, numToMask, parseBRL } from "@/lib/format";
+import { signedUrl, uploadArquivoCotacao } from "@/lib/upload";
 import { cn } from "@/lib/utils";
 
 interface Cotacao {
