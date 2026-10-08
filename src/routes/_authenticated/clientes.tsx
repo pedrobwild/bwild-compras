@@ -78,40 +78,51 @@ function ClientesPage() {
     const emp = v.obra.empreendimento.trim() || c.empreendimento || "";
     const un = v.obra.unidade.trim() || c.unidade || "";
     const avisos = v.avisos.length ? `Avisos do projeto:\n${v.avisos.map((a) => `- ${a}`).join("\n")}` : "";
-    const { data: sol, error: eSol } = await supabase
-      .from("solicitacoes")
-      .insert({
-        cliente: v.obra.cliente.trim() || c.nome,
-        empreendimento: emp || null,
-        unidade: un || null,
-        endereco_obra: v.obra.endereco.trim() || c.endereco || null,
-        titulo: `Compras projeto executivo — ${emp || c.nome}${un ? ` ${un}` : ""}`.slice(0, 200),
-        descricao: avisos || null,
-        prioridade: "normal",
-        area_m2: v.area_m2,
-        prazo_obra: v.prazo_obra,
-        extracao_id: v.extracao_id,
-      })
-      .select("id, codigo")
-      .single();
-    if (eSol) { toast.error("Não foi possível criar a solicitação: " + eSol.message); throw eSol; }
-    if (v.itens.length) {
-      const { error: eIt } = await supabase.from("solicitacao_itens").insert(
-        v.itens.map((i) => ({
-          solicitacao_id: sol.id, descricao: i.descricao.trim().slice(0, 500), quantidade: i.quantidade,
-          unidade: i.unidade || "un", ambiente: i.ambiente || null, referencia_projeto: i.referencia_projeto || null,
-          observacao: i.observacao || null, categoria: i.categoria || null,
-          especificacao: i.especificacao.trim() || null, link_referencia: i.link_referencia.trim() || null,
-          origem: "projeto_executivo",
-        })),
-      );
-      if (eIt) { toast.error("Solicitação criada, mas os itens falharam: " + eIt.message); throw eIt; }
+    if (!v.itens.length) { toast.error("Nenhum item para criar."); return; }
+    // Um card (solicitação) por item do projeto.
+    const base = {
+      cliente: v.obra.cliente.trim() || c.nome,
+      empreendimento: emp || null,
+      unidade: un || null,
+      endereco_obra: v.obra.endereco.trim() || c.endereco || null,
+      descricao: avisos || null,
+      prioridade: "normal" as const,
+      area_m2: v.area_m2,
+      prazo_obra: v.prazo_obra,
+      extracao_id: v.extracao_id,
+    };
+    const criadas: { id: string; codigo: string }[] = [];
+    for (const i of v.itens) {
+      const desc = i.descricao.trim();
+      const { data: sol, error: eSol } = await supabase
+        .from("solicitacoes")
+        .insert({ ...base, titulo: `${desc} — ${emp || c.nome}${un ? ` ${un}` : ""}`.slice(0, 200) })
+        .select("id, codigo")
+        .single();
+      if (eSol) { toast.error(`Parou em "${desc}": ` + eSol.message); throw eSol; }
+      const { error: eIt } = await supabase.from("solicitacao_itens").insert({
+        solicitacao_id: sol.id, descricao: desc.slice(0, 500), quantidade: i.quantidade,
+        unidade: i.unidade || "un", ambiente: i.ambiente || null, referencia_projeto: i.referencia_projeto || null,
+        observacao: i.observacao || null, categoria: i.categoria || null,
+        especificacao: i.especificacao.trim() || null, link_referencia: i.link_referencia.trim() || null,
+        origem: "projeto_executivo",
+      });
+      if (eIt) { toast.error(`Card ${sol.codigo} criado, mas o item falhou: ` + eIt.message); throw eIt; }
+      criadas.push(sol);
     }
-    await supabase.from("extracoes_projeto").update({ solicitacao_id: sol.id }).eq("id", v.extracao_id);
-    try { await uploadAnexo(sol.id, file, () => {}); } catch { toast.error("Solicitação criada, mas o PDF não foi anexado."); }
-    toast.success(`Solicitação ${sol.codigo} criada com ${v.itens.length} itens do projeto`);
+    await supabase.from("extracoes_projeto").update({ solicitacao_id: criadas[0].id }).eq("id", v.extracao_id);
+    // PDF enviado uma vez e vinculado a todos os cards.
+    try {
+      await uploadAnexo(criadas[0].id, file, () => {});
+      const { data: an } = await supabase.from("solicitacao_anexos").select("nome_arquivo, storage_path, tamanho_bytes, tipo_mime")
+        .eq("solicitacao_id", criadas[0].id).order("created_at", { ascending: false }).limit(1).single();
+      if (an && criadas.length > 1) {
+        await supabase.from("solicitacao_anexos").insert(criadas.slice(1).map((s) => ({ ...an, solicitacao_id: s.id })));
+      }
+    } catch { toast.error("Cards criados, mas o PDF não foi anexado."); }
+    toast.success(`${criadas.length} cards criados (1 item por card)`);
     setAlvo(null);
-    navigate({ to: "/solicitacoes/$id", params: { id: sol.id } });
+    navigate({ to: "/compras" });
   });
 
   const q = useQuery({
