@@ -39,11 +39,12 @@ export function sanitizeFileName(name: string) {
     .replace(/[^a-zA-Z0-9._-]/g, "_");
 }
 
-export type Status = "nova" | "em_cotacao" | "aguardando_aprovacao" | "aprovada" | "comprada" | "entregue_parcial" | "entregue" | "cancelada";
+export type Status = "nova" | "cronograma_confirmado" | "em_cotacao" | "aguardando_aprovacao" | "aprovada" | "comprada" | "entregue_parcial" | "entregue" | "cancelada";
 export type Prioridade = "baixa" | "normal" | "urgente";
 
 export const STATUS: Record<Status, { label: string; cls: string }> = {
   nova: { label: "Nova", cls: "bg-status-nova/12 text-status-nova border-status-nova/30" },
+  cronograma_confirmado: { label: "Cronograma confirmado", cls: "bg-status-entregue/12 text-status-entregue border-status-entregue/30" },
   em_cotacao: { label: "Em cotação", cls: "bg-status-cotacao/15 text-status-cotacao border-status-cotacao/35" },
   aguardando_aprovacao: { label: "Aprovação", cls: "bg-status-aprovacao/15 text-status-aprovacao border-status-aprovacao/35" },
   aprovada: { label: "Aprovado", cls: "bg-status-aprovada/12 text-status-aprovada border-status-aprovada/30" },
