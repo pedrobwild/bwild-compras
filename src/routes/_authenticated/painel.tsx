@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Plus, Search, AlertTriangle } from "lucide-react";
 import { usePainel } from "@/hooks/usePainel";
 import { useAuth } from "@/hooks/useAuth";
+import { useRecursosBanco } from "@/hooks/useRecursos";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -14,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StatusBadge, PrioridadeBadge } from "@/components/badges";
 import { EmptyState, ErrorState, LoadingList } from "@/components/States";
-import { fmtBRL, fmtDate, STATUS, STATUS_KEYS, type PainelRow, type Status } from "@/lib/format";
+import { fmtBRL, fmtDate, STATUS, statusDisponiveis, type PainelRow, type Status } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/painel")({
@@ -57,6 +58,7 @@ function Painel() {
     },
   });
   const { user } = useAuth();
+  const recursos = useRecursosBanco();
   const navigate = useNavigate();
   const [q, setQ] = useState("");
   const [statuses, setStatuses] = useState<Status[]>([]);
@@ -64,7 +66,7 @@ function Painel() {
   const [cliente, setCliente] = useState("todos");
   const [minhas, setMinhas] = useState(false);
 
-  const rows = data ?? [];
+  const rows = useMemo(() => data ?? [], [data]);
   const now = new Date();
   const resumo = useMemo(() => {
     const inMonth = (d: string) => isSameMonth(parseISO(d), now);
@@ -158,7 +160,7 @@ function Painel() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          {STATUS_KEYS.map((s) => {
+          {statusDisponiveis(recursos.cronograma).map((s) => {
             const on = statuses.includes(s);
             return (
               <button

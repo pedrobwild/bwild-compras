@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { usePainel } from "@/hooks/usePainel";
 import { useRole } from "@/hooks/useAuth";
+import { useRecursosBanco } from "@/hooks/useRecursos";
 import { PrioridadeBadge } from "@/components/badges";
 import { EmptyState, ErrorState, LoadingList } from "@/components/States";
 import { fmtDate, STATUS, type PainelRow, type Status } from "@/lib/format";
@@ -44,6 +45,7 @@ const COLS: { key: Status; dot: string }[] = [
 function Fila() {
   const { isCompras, isAdmin, loading } = useRole();
   const { data, isLoading, error } = usePainel();
+  const recursos = useRecursosBanco();
   const qc = useQueryClient();
   const [visao, setVisao] = useState<"status" | "cliente">("status");
   const [cliente, setCliente] = useState("todos");
@@ -53,13 +55,21 @@ function Fila() {
   const [entregaRange, setEntregaRange] = useState<DateRange | undefined>();
 
   // Datas de compra/entrega não existem na view do painel: busca direto na tabela compras.
+  // Chave dentro de "painel" para o tempo real também atualizar estes filtros; paginado (o banco devolve no máx. 1000 por vez).
   const comprasQ = useQuery({
-    queryKey: ["compras-datas-fila"],
+    queryKey: ["painel", "compras-datas-fila"],
     queryFn: async () => {
-      const { data: rows, error: err } = await supabase.from("compras").select("solicitacao_id, data_compra, previsao_entrega");
-      if (err) throw err;
+      const rows: { solicitacao_id: string; data_compra: string | null; previsao_entrega: string | null }[] = [];
+      for (let from = 0; ; from += 1000) {
+        const { data: page, error: err } = await supabase
+          .from("compras").select("solicitacao_id, data_compra, previsao_entrega")
+          .order("id").range(from, from + 999);
+        if (err) throw err;
+        rows.push(...(page ?? []));
+        if (!page || page.length < 1000) break;
+      }
       const map = new Map<string, { data_compra: string | null; previsao_entrega: string | null }[]>();
-      for (const c of rows ?? []) {
+      for (const c of rows) {
         const list = map.get(c.solicitacao_id) ?? [];
         list.push({ data_compra: c.data_compra, previsao_entrega: c.previsao_entrega });
         map.set(c.solicitacao_id, list);
@@ -114,8 +124,10 @@ function Fila() {
   const clientes = Array.from(new Set(base.map((r) => r.cliente))).sort((a, b) => a.localeCompare(b, "pt-BR"));
   const rows = (cliente === "todos" ? base : base.filter((r) => r.cliente === cliente)).filter((r) => bateCompra(r.id) && bateEntrega(r.id));
   const ordenar = (a: PainelRow, b: PainelRow) => Number(b.atrasada) - Number(a.atrasada) || Number(b.prioridade === "urgente") - Number(a.prioridade === "urgente") || a.created_at.localeCompare(b.created_at);
+  // "Cronograma confirmado" só vira coluna quando o banco tiver esse status.
+  const colsAtivas = recursos.cronograma ? COLS : COLS.filter((c) => c.key !== "cronograma_confirmado");
   const colunas = visao === "status"
-    ? COLS.map((c) => ({ key: c.key, titulo: STATUS[c.key].label, dot: c.dot, list: rows.filter((r) => r.status === c.key).sort(ordenar) }))
+    ? colsAtivas.map((c) => ({ key: c.key, titulo: STATUS[c.key].label, dot: c.dot, list: rows.filter((r) => r.status === c.key).sort(ordenar) }))
     : Array.from(new Set(rows.map((r) => r.cliente))).sort((a, b) => a.localeCompare(b, "pt-BR")).map((cl) => ({ key: cl, titulo: cl, dot: "bg-accent", list: rows.filter((r) => r.cliente === cl).sort(ordenar) }));
   const semResp = rows.filter((r) => !r.responsavel_compras_id && r.status !== "entregue").length;
   const atrasadas = rows.filter((r) => r.atrasada).length;

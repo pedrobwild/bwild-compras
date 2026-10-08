@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Check, FileText, Image as ImageIcon, Paperclip, Pencil, Plus, Trash2, Trophy } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { BUCKET, supabase } from "@/integrations/supabase/client";
+import { useRecursosBanco } from "@/hooks/useRecursos";
+import { nomeCanal } from "@/lib/realtime";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EmptyState, ErrorState, LoadingList } from "@/components/States";
 import { fmtBRL, fmtDate, maskBRL, numToMask, parseBRL } from "@/lib/format";
-import { signedUrl, uploadArquivoCotacao } from "@/lib/upload";
+import { abrirArquivo, uploadArquivoCotacao } from "@/lib/upload";
 import { cn } from "@/lib/utils";
 
 interface Cotacao {
@@ -39,6 +41,8 @@ const ACCEPT_ANEXO = ".pdf,.png,.jpg,.jpeg";
 
 export function CotacoesTab({ solicitacaoId, podeEditar }: { solicitacaoId: string; podeEditar: boolean }) {
   const qc = useQueryClient();
+  // Sem a tabela cotacao_anexos no banco, o arquivo subia e o registro falhava (arquivo órfão e erro).
+  const { anexosCotacao } = useRecursosBanco();
   const key = ["cotacoes", solicitacaoId];
   const q = useQuery({
     queryKey: key,
@@ -56,12 +60,16 @@ export function CotacoesTab({ solicitacaoId, podeEditar }: { solicitacaoId: stri
     qc.invalidateQueries({ queryKey: ["cotacao-anexos", solicitacaoId] });
   };
 
+  const cotacaoIds = (q.data ?? []).map((c) => c.id);
   const anexosQ = useQuery({
-    queryKey: ["cotacao-anexos", solicitacaoId],
+    queryKey: ["cotacao-anexos", solicitacaoId, cotacaoIds],
+    enabled: anexosCotacao && cotacaoIds.length > 0,
     queryFn: async () => {
+      // Só os anexos das cotações desta solicitação (antes buscava os de todas as solicitações).
       const { data, error } = await supabase
         .from("cotacao_anexos")
         .select("*")
+        .in("cotacao_id", cotacaoIds)
         .order("created_at");
       if (error) {
         if (/cotacao_anexos|schema cache|does not exist/i.test(error.message)) return [] as CotacaoAnexo[];
@@ -79,14 +87,14 @@ export function CotacoesTab({ solicitacaoId, podeEditar }: { solicitacaoId: stri
   }
 
   useEffect(() => {
-    const ch = supabase
-      .channel(`cot-${solicitacaoId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "cotacoes", filter: `solicitacao_id=eq.${solicitacaoId}` }, refresh)
-      .on("postgres_changes", { event: "*", schema: "public", table: "cotacao_anexos" }, refresh)
-      .subscribe();
+    let ch = supabase
+      .channel(nomeCanal(`cot-${solicitacaoId}`))
+      .on("postgres_changes", { event: "*", schema: "public", table: "cotacoes", filter: `solicitacao_id=eq.${solicitacaoId}` }, refresh);
+    if (anexosCotacao) ch = ch.on("postgres_changes", { event: "*", schema: "public", table: "cotacao_anexos" }, refresh);
+    ch.subscribe();
     return () => { supabase.removeChannel(ch); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [solicitacaoId]);
+  }, [solicitacaoId, anexosCotacao]);
 
   const anexar = async (cotacaoId: string, files: FileList | null) => {
     if (!files?.length) return;
@@ -101,7 +109,11 @@ export function CotacoesTab({ solicitacaoId, podeEditar }: { solicitacaoId: stri
           tamanho_bytes: file.size,
           tipo_mime: file.type || null,
         });
-        if (error) throw error;
+        if (error) {
+          // Não deixa o arquivo solto no storage quando o registro falha.
+          await supabase.storage.from(BUCKET).remove([path]);
+          throw error;
+        }
       }
       toast.success(files.length > 1 ? `${files.length} anexos enviados` : "Anexo enviado");
       refresh();
@@ -114,7 +126,7 @@ export function CotacoesTab({ solicitacaoId, podeEditar }: { solicitacaoId: stri
 
   const abrirAnexo = async (a: CotacaoAnexo) => {
     try {
-      window.open(await signedUrl(a.storage_path), "_blank", "noopener");
+      await abrirArquivo(a.storage_path);
     } catch {
       toast.error("Não foi possível abrir o anexo");
     }
@@ -122,8 +134,10 @@ export function CotacoesTab({ solicitacaoId, podeEditar }: { solicitacaoId: stri
 
   const excluirAnexo = async (a: CotacaoAnexo) => {
     if (!confirm(`Excluir o anexo ${a.nome_arquivo}?`)) return;
-    const { error } = await supabase.from("cotacao_anexos").delete().eq("id", a.id);
+    const { data: excluidos, error } = await supabase.from("cotacao_anexos").delete().eq("id", a.id).select("id");
     if (error) return toast.error(error.message);
+    if (!excluidos?.length) return toast.error("Não foi possível excluir o anexo: sem permissão.");
+    await supabase.storage.from(BUCKET).remove([a.storage_path]);
     toast.success("Anexo excluído");
     refresh();
   };
@@ -217,7 +231,7 @@ export function CotacoesTab({ solicitacaoId, podeEditar }: { solicitacaoId: stri
                     </div>
                   );
                 })}
-                {podeEditar && (
+                {podeEditar && anexosCotacao && (
                   <label className={cn("inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-dashed px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-muted/50", enviando === c.id && "pointer-events-none opacity-50")}>
                     <Paperclip className="h-3.5 w-3.5" />
                     {enviando === c.id ? "Enviando…" : "Anexar PDF ou imagem"}

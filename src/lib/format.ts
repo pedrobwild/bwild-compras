@@ -54,6 +54,9 @@ export const STATUS: Record<Status, { label: string; cls: string }> = {
   cancelada: { label: "Cancelada", cls: "bg-muted text-muted-foreground border-border" },
 };
 export const STATUS_KEYS = Object.keys(STATUS) as Status[];
+/** Status que o banco aceita hoje: "cronograma_confirmado" só existe depois do script SQL (ver useRecursosBanco). */
+export const statusDisponiveis = (cronograma: boolean, atual?: Status) =>
+  STATUS_KEYS.filter((k) => cronograma || k !== "cronograma_confirmado" || k === atual);
 
 export const PRIORIDADE: Record<Prioridade, { label: string; cls: string }> = {
   baixa: { label: "Baixa", cls: "bg-muted text-muted-foreground border-border" },

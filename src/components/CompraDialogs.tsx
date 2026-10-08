@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -68,8 +68,16 @@ export function CompraDialog({
   onSaved: () => void;
 }) {
   const form = useForm<V>({ resolver: zodResolver(schema) });
+  // Preenche só ao abrir: antes, qualquer atualização da tela (tempo real, voltar para a aba)
+  // reiniciava o formulário e apagava o que já tinha sido digitado.
+  const preenchido = useRef(false);
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      preenchido.current = false;
+      return;
+    }
+    if (preenchido.current) return;
+    preenchido.current = true;
     const base = compra ?? (sugestao as Compra | null | undefined);
     form.reset({
       fornecedor: base?.fornecedor ?? "",
@@ -136,7 +144,11 @@ export function CompraDialog({
             <Controller control={form.control} name="forma_pagamento" render={({ field }) => (
               <Select value={field.value} onValueChange={field.onChange}>
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>{FORMAS_PAGAMENTO.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent>
+                <SelectContent>
+                  {/* Condição vinda da cotação ("30/60 boleto") ou valor antigo: mostra o que será salvo. */}
+                  {field.value && !FORMAS_PAGAMENTO.includes(field.value) && <SelectItem value={field.value}>{field.value}</SelectItem>}
+                  {FORMAS_PAGAMENTO.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                </SelectContent>
               </Select>
             )} />
           </div>

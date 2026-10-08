@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { format } from "date-fns";
 import { toast } from "sonner";
 import {
   ArrowLeft, Download, ExternalLink, FileText, Hand, Plus, ShoppingCart, Split, Trash2, Truck, Pencil, XCircle, MessageSquare, Check,
@@ -21,9 +22,11 @@ import { StatusBadge, PrioridadeBadge } from "@/components/badges";
 import { ErrorState, EmptyState } from "@/components/States";
 import { FileDropzone, type PendingFile } from "@/components/FileDropzone";
 import { CompraDialog, RecebimentoDialog, type Compra } from "@/components/CompraDialogs";
-import { signedUrl, uploadAnexo } from "@/lib/upload";
-import { AMBIENTES, CATEGORIAS, UNIDADES, STATUS, STATUS_KEYS, fmtBRL, fmtBytes, fmtDate, type Prioridade, type Status } from "@/lib/format";
+import { abrirArquivo, signedUrl, uploadAnexo } from "@/lib/upload";
+import { AMBIENTES, CATEGORIAS, UNIDADES, STATUS, statusDisponiveis, fmtBRL, fmtBytes, fmtDate, type Prioridade, type Status } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { nomeCanal } from "@/lib/realtime";
+import { useRecursosBanco } from "@/hooks/useRecursos";
 import { useLeituraProjeto, type ValidacaoAplicada } from "@/components/ValidacaoProjeto";
 import { FileSearch, Send, ShieldCheck } from "lucide-react";
 
@@ -43,9 +46,10 @@ interface Solicitacao {
   id: string; codigo: string; cliente: string; empreendimento: string | null; unidade: string | null; endereco_obra: string | null;
   titulo: string; descricao: string | null; prioridade: Prioridade; data_necessaria: string | null; prazo_compra?: string | null; data_compra_efetiva?: string | null; status: Status;
   solicitante_id: string; responsavel_compras_id: string | null; motivo_cancelamento: string | null; created_at: string;
+  area_m2?: number | null; prazo_obra?: string | null; extracao_id?: string | null;
 }
 interface Item { id: string; descricao: string; quantidade: number; unidade: string; ambiente: string | null; referencia_projeto: string | null; observacao: string | null; categoria?: string | null; especificacao?: string | null; link_referencia?: string | null; origem?: string | null }
-interface Anexo { id: string; nome_arquivo: string; storage_path: string; tamanho_bytes: number | null; created_at: string }
+interface Anexo { id: string; nome_arquivo: string; storage_path: string; tamanho_bytes: number | null; tipo_mime?: string | null; created_at: string }
 interface Evento { id: string; tipo: string; descricao: string | null; usuario_id: string | null; created_at: string }
 
 const STEPS: { key: Status; label: string }[] = [
@@ -57,13 +61,18 @@ const STEPS: { key: Status; label: string }[] = [
   { key: "comprada", label: "Comprada" },
   { key: "entregue", label: "Entregue" },
 ];
-const stepIndex = (s: Status) => (s === "entregue_parcial" ? 5.5 : STEPS.findIndex((x) => x.key === s));
+/** Posição na barra de progresso; "entregue parcial" fica entre Comprada e Entregue. */
+const stepIndex = (passos: typeof STEPS, s: Status) =>
+  s === "entregue_parcial" ? passos.findIndex((x) => x.key === "comprada") + 0.5 : passos.findIndex((x) => x.key === s);
 
 function Detalhe() {
   const { id } = Route.useParams();
   const { user } = useAuth();
   const { isCompras, isAdmin } = useRole();
   const qc = useQueryClient();
+  const navigate = useNavigate();
+  const recursos = useRecursosBanco();
+  const [dividindo, setDividindo] = useState(false);
 
   const escolhidaQ = useQuery({
     queryKey: ["cotacoes", id, "escolhida"],
@@ -99,7 +108,7 @@ function Detalhe() {
 
   useEffect(() => {
     const ch = supabase
-      .channel(`sol-${id}`)
+      .channel(nomeCanal(`sol-${id}`))
       .on("postgres_changes", { event: "*", schema: "public", table: "solicitacoes", filter: `id=eq.${id}` }, () => refresh())
       .on("postgres_changes", { event: "*", schema: "public", table: "compras", filter: `solicitacao_id=eq.${id}` }, () => refresh())
       .on("postgres_changes", { event: "*", schema: "public", table: "cotacoes", filter: `solicitacao_id=eq.${id}` }, () => qc.invalidateQueries({ queryKey: ["cotacoes", id] }))
@@ -119,13 +128,24 @@ function Detalhe() {
   const [recCompra, setRecCompra] = useState<Compra | null>(null);
   const [cancelOpen, setCancelOpen] = useState(false);
 
+  // Mesmo objeto entre renderizações: senão o formulário de compra era reiniciado a cada atualização da tela.
+  const escolhida = escolhidaQ.data ?? null;
+  const sugestao = useMemo(
+    () =>
+      escolhida
+        ? ({ fornecedor: escolhida.fornecedor, fornecedor_contato: escolhida.fornecedor_contato, valor_total: escolhida.valor_total ?? undefined, forma_pagamento: escolhida.condicao_pagamento } as Partial<Compra>)
+        : null,
+    [escolhida],
+  );
+
+  // Todos os hooks ficam acima destes retornos: chamar hook depois de um return derrubava a tela
+  // ("Rendered more hooks than during the previous render") na primeira vez que o detalhe abria.
   if (q.isLoading) return <div className="space-y-4"><Skeleton className="h-32" /><Skeleton className="h-64" /></div>;
   if (q.error) return <ErrorState message={(q.error as Error).message} />;
   const d = q.data!;
   if (!d.sol) return <EmptyState title="Solicitação não encontrada." action={<Button asChild size="sm"><Link to="/painel">Voltar ao painel</Link></Button>} />;
   const s = d.sol;
   const isOwnerEditable = s.solicitante_id === user?.id && s.status === "nova";
-  const escolhida = escolhidaQ.data ?? null;
   const podeStatus = (k: Status) => {
     if (k === s.status) return true;
     if (isAdmin) return true;
@@ -134,50 +154,70 @@ function Detalhe() {
     return true;
   };
   const total = d.compras.reduce((a, c) => a + Number(c.valor_total ?? 0), 0);
+  // A coluna data_compra_efetiva não existe no banco: usa a data da primeira compra registrada.
+  const compraRealizadaEm = s.data_compra_efetiva ?? (d.compras.map((c) => c.data_compra).filter(Boolean).sort()[0] || null);
 
-  const update = async (patch: Partial<Solicitacao>, msg: string) => {
+  /** Grava na solicitação. Devolve false quando não salvou (erro ou sem permissão). */
+  const update = async (patch: Partial<Solicitacao>, msg: string): Promise<boolean> => {
     const novoStatus = patch.status ?? s.status;
     const novaData = "data_necessaria" in patch ? patch.data_necessaria : s.data_necessaria;
     if (novoStatus === "cronograma_confirmado" && !novaData) {
-      if (patch.status === "cronograma_confirmado") return void toast.error("Preencha o prazo para o item chegar na obra antes de confirmar o cronograma.");
+      if (patch.status === "cronograma_confirmado") {
+        toast.error("Preencha o prazo para o item chegar na obra antes de confirmar o cronograma.");
+        return false;
+      }
       patch = { ...patch, status: "nova" };
       msg += " — card voltou para Nova (sem prazo de chegada)";
     }
-    const { error } = await supabase.from("solicitacoes").update(patch).eq("id", id);
-    if (error) return toast.error("Não foi possível atualizar: " + error.message);
+    const { data: salvas, error } = await supabase.from("solicitacoes").update(patch).eq("id", id).select("id");
+    if (error) {
+      toast.error("Não foi possível atualizar: " + error.message);
+      return false;
+    }
+    // Sem permissão o banco não altera nada e também não devolve erro: não mostrar "salvo" à toa.
+    if (!salvas?.length) {
+      toast.error("Não foi possível atualizar: você não pode alterar esta solicitação nesta etapa.");
+      refresh();
+      return false;
+    }
     toast.success(msg);
     refresh();
+    return true;
   };
 
-  const idx = stepIndex(s.status);
-
-  const navigate = useNavigate();
-  const [dividindo, setDividindo] = useState(false);
+  const passos = recursos.cronograma ? STEPS : STEPS.filter((x) => x.key !== "cronograma_confirmado");
+  const idx = stepIndex(passos, s.status);
 
   const excluirCard = async () => {
     if (!window.confirm(`Excluir o card ${s.codigo}? Itens e anexos serão removidos. Essa ação não pode ser desfeita.`)) return;
-    const { error } = await supabase.from("solicitacoes").delete().eq("id", id);
+    const { data: excluidas, error } = await supabase.from("solicitacoes").delete().eq("id", id).select("id");
     if (error) return toast.error("Não foi possível excluir: " + error.message);
+    // Sem permissão o banco não exclui nada e também não devolve erro.
+    if (!excluidas?.length) return toast.error("Não foi possível excluir: somente o admin pode excluir cards.");
     toast.success(`Card ${s.codigo} excluído`);
     qc.invalidateQueries({ queryKey: ["painel"] });
     navigate({ to: "/compras" });
   };
 
   const dividir = async () => {
-    if (!window.confirm(`Dividir ${s.codigo} em ${d.itens.length} cards (1 item por card)? O card original será excluído.`)) return;
+    if (!window.confirm(`Dividir ${s.codigo} em ${d.itens.length} cards (1 item por card)? O card original será ${isAdmin ? "excluído" : "cancelado"}.`)) return;
     setDividindo(true);
+    const criadas: { id: string; codigo: string }[] = [];
     try {
-      // Não inclui prazo_compra: a coluna só existe depois de rodar prazos_compra.sql no banco.
+      // Os cards novos mantêm a etapa, o responsável e os dados da obra do card original.
       const base = {
         cliente: s.cliente, empreendimento: s.empreendimento, unidade: s.unidade, endereco_obra: s.endereco_obra,
         descricao: s.descricao, prioridade: s.prioridade, data_necessaria: s.data_necessaria,
+        status: s.status, responsavel_compras_id: s.responsavel_compras_id,
+        area_m2: s.area_m2 ?? null, prazo_obra: s.prazo_obra ?? null, extracao_id: s.extracao_id ?? null,
+        ...(recursos.prazoCompra ? { prazo_compra: s.prazo_compra ?? null } : {}),
       };
-      const criadas: string[] = [];
       for (const it of d.itens) {
         const { data: sol, error: eSol } = await supabase.from("solicitacoes")
           .insert({ ...base, titulo: `${it.descricao} — ${s.empreendimento || s.cliente}${s.unidade ? ` ${s.unidade}` : ""}`.slice(0, 200) })
-          .select("id").single();
+          .select("id, codigo").single();
         if (eSol) throw eSol;
+        criadas.push(sol as { id: string; codigo: string });
         const { error: eIt } = await supabase.from("solicitacao_itens").insert({
           solicitacao_id: sol.id, descricao: it.descricao, quantidade: it.quantidade, unidade: it.unidade,
           ambiente: it.ambiente, referencia_projeto: it.referencia_projeto, observacao: it.observacao,
@@ -185,20 +225,42 @@ function Detalhe() {
           link_referencia: it.link_referencia ?? null, origem: it.origem ?? "projeto_executivo",
         });
         if (eIt) throw eIt;
-        criadas.push(sol.id);
       }
+      let anexosCopiados = true;
       if (d.anexos.length) {
-        await supabase.from("solicitacao_anexos").insert(
-          criadas.flatMap((sid) => d.anexos.map((a) => ({ solicitacao_id: sid, nome_arquivo: a.nome_arquivo, storage_path: a.storage_path, tamanho_bytes: a.tamanho_bytes }))),
+        const { error: eAn } = await supabase.from("solicitacao_anexos").insert(
+          criadas.flatMap((c) => d.anexos.map((a) => ({ solicitacao_id: c.id, nome_arquivo: a.nome_arquivo, storage_path: a.storage_path, tamanho_bytes: a.tamanho_bytes, tipo_mime: a.tipo_mime ?? null }))),
         );
+        if (eAn) {
+          anexosCopiados = false;
+          toast.error("Cards criados, mas os anexos não foram copiados — eles continuam no card original: " + eAn.message);
+        }
       }
-      const { error: eDel } = await supabase.from("solicitacoes").delete().eq("id", id);
-      if (eDel) toast.error(`Cards criados, mas não consegui excluir o card original: ${eDel.message}`);
-      else toast.success(`${criadas.length} cards criados (1 item por card)`);
+      const codigos = criadas.map((c) => c.codigo).join(", ");
+      // Excluir o original apagaria os anexos dele: se a cópia falhou, ele é só cancelado.
+      const { data: excluidas, error: eDel } = anexosCopiados
+        ? await supabase.from("solicitacoes").delete().eq("id", id).select("id")
+        : { data: [], error: null };
+      if (!eDel && excluidas?.length) {
+        toast.success(`${criadas.length} cards criados (1 item por card)`);
+      } else {
+        // Só o admin exclui cards. Para Compras, o original é cancelado para não ficar em dobro na fila.
+        const { error: eCan } = await supabase.from("solicitacoes")
+          .update({ status: "cancelada", motivo_cancelamento: `Dividido em ${criadas.length} cards: ${codigos}`.slice(0, 500) })
+          .eq("id", id);
+        if (eCan) toast.error(`Cards criados (${codigos}), mas o card original continua ativo: ${eCan.message}`);
+        else toast.success(`${criadas.length} cards criados (1 item por card). O card original foi cancelado.`);
+      }
       qc.invalidateQueries({ queryKey: ["painel"] });
       navigate({ to: "/compras" });
     } catch (e) {
-      toast.error("Não foi possível dividir: " + ((e as { message?: string }).message ?? "erro desconhecido"));
+      const msg = (e as { message?: string }).message ?? "erro desconhecido";
+      if (criadas.length) {
+        toast.error(`Divisão interrompida: ${criadas.length} card(s) já criado(s) (${criadas.map((c) => c.codigo).join(", ")}) e o original continua ativo. ${msg}`);
+        qc.invalidateQueries({ queryKey: ["painel"] });
+      } else {
+        toast.error("Não foi possível dividir: " + msg);
+      }
     } finally {
       setDividindo(false);
     }
@@ -264,9 +326,11 @@ function Detalhe() {
           <Info label="Cliente" value={s.cliente} />
           <Info label="Empreendimento / Unidade" value={[s.empreendimento, s.unidade].filter(Boolean).join(" · ") || "—"} />
           <Info label="Solicitante" value={d.nomes[s.solicitante_id] ?? "—"} />
-          <PrazoInfo label="Prazo para efetivar compra" value={s.prazo_compra ?? null} editavel={isCompras || isOwnerEditable} onSave={(v) => update({ prazo_compra: v }, "Prazo de compra atualizado")} />
+          {recursos.prazoCompra && (
+            <PrazoInfo label="Prazo para efetivar compra" value={s.prazo_compra ?? null} editavel={isCompras || isOwnerEditable} onSave={(v) => update({ prazo_compra: v }, "Prazo de compra atualizado")} />
+          )}
           <PrazoInfo label="Prazo para o item chegar" value={s.data_necessaria} editavel={isCompras || isOwnerEditable} onSave={(v) => update({ data_necessaria: v }, "Prazo de chegada atualizado")} />
-          <Info label="Compra realizada em" value={s.data_compra_efetiva ? fmtDate(s.data_compra_efetiva) : "—"} />
+          <Info label="Compra realizada em" value={fmtDate(compraRealizadaEm)} />
           <Info label="Responsável de compras" value={s.responsavel_compras_id ? d.nomes[s.responsavel_compras_id] ?? "—" : "Sem responsável"} />
           <Info label="Endereço da obra" value={s.endereco_obra || "—"} />
           <Info label="Aberta em" value={fmtDate(s.created_at)} />
@@ -280,7 +344,7 @@ function Detalhe() {
         {s.status !== "cancelada" && (
           <div className="mt-6">
             <div className="flex items-center">
-              {STEPS.map((st, i) => {
+              {passos.map((st, i) => {
                 const done = idx >= i;
                 return (
                   <div key={st.key} className="flex flex-1 items-center last:flex-none">
@@ -292,7 +356,7 @@ function Detalhe() {
                         {st.key === "entregue" && s.status === "entregue_parcial" ? "Parcial" : st.label}
                       </span>
                     </div>
-                    {i < STEPS.length - 1 && <div className={cn("mx-1 mb-5 h-0.5 flex-1", idx > i ? "bg-accent" : "bg-border")} />}
+                    {i < passos.length - 1 && <div className={cn("mx-1 mb-5 h-0.5 flex-1", idx > i ? "bg-accent" : "bg-border")} />}
                   </div>
                 );
               })}
@@ -307,7 +371,7 @@ function Detalhe() {
                 <Label className="text-xs text-muted-foreground">Alterar status</Label>
                 <Select value={s.status} onValueChange={(v) => v === "cancelada" ? setCancelOpen(true) : update({ status: v as Status }, "Status atualizado")}>
                   <SelectTrigger className="h-9 w-44"><SelectValue /></SelectTrigger>
-                  <SelectContent>{STATUS_KEYS.filter(podeStatus).map((k) => <SelectItem key={k} value={k}>{STATUS[k].label}</SelectItem>)}</SelectContent>
+                  <SelectContent>{statusDisponiveis(recursos.cronograma, s.status).filter(podeStatus).map((k) => <SelectItem key={k} value={k}>{STATUS[k].label}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             )}
@@ -319,14 +383,14 @@ function Detalhe() {
             <Button variant="outline" size="sm" className="text-destructive" onClick={() => setCancelOpen(true)}>
               <XCircle className="h-4 w-4" /> Cancelar solicitação
             </Button>
-            {isCompras && (
+            {isAdmin && (
               <Button variant="outline" size="sm" className="text-destructive" onClick={excluirCard} title="Excluir este card definitivamente" aria-label="Excluir card">
                 <Trash2 className="h-4 w-4" /> Excluir card
               </Button>
             )}
           </div>
         )}
-        {isCompras && s.status === "cancelada" && (
+        {isAdmin && s.status === "cancelada" && (
           <div className="mt-5 flex flex-wrap items-center gap-2 border-t pt-4">
             <Button variant="outline" size="sm" className="text-destructive" onClick={excluirCard} title="Excluir este card definitivamente" aria-label="Excluir card">
               <Trash2 className="h-4 w-4" /> Excluir card
@@ -401,7 +465,7 @@ function Detalhe() {
         solicitacaoId={id}
         enderecoObra={s.endereco_obra}
         compra={editCompra}
-        sugestao={escolhida ? { fornecedor: escolhida.fornecedor, fornecedor_contato: escolhida.fornecedor_contato, valor_total: escolhida.valor_total ?? undefined, forma_pagamento: escolhida.condicao_pagamento } as Partial<Compra> : null}
+        sugestao={sugestao}
         onSaved={refresh}
       />
       <RecebimentoDialog compra={recCompra} onOpenChange={(o) => !o && setRecCompra(null)} onSaved={refresh} />
@@ -563,7 +627,7 @@ function AnexosTab({ anexos, solicitacaoId, onChange, podeImportar }: { anexos: 
     await supabase.from("solicitacao_eventos").insert({ solicitacao_id: solicitacaoId, tipo: "comentario", descricao: `Itens importados do projeto executivo: ${v.itens.length} itens`, usuario_id: user!.id });
     toast.success(`${v.itens.length} itens importados`);
     onChange();
-  });
+  }, { exigirQuantidade: true }); // os itens vão direto para o banco, onde a quantidade é obrigatória
   const importar = async (a: Anexo) => {
     try {
       const url = await signedUrl(a.storage_path);
@@ -577,8 +641,7 @@ function AnexosTab({ anexos, solicitacaoId, onChange, podeImportar }: { anexos: 
   const [busy, setBusy] = useState(false);
   const open = async (a: Anexo, download: boolean) => {
     try {
-      const url = await signedUrl(a.storage_path, download ? a.nome_arquivo : undefined);
-      window.open(url, "_blank", "noopener");
+      await abrirArquivo(a.storage_path, download ? a.nome_arquivo : undefined);
     } catch (e) {
       toast.error("Não foi possível abrir o arquivo: " + (e as Error).message);
     }
@@ -674,9 +737,43 @@ function Timeline({ eventos, nomes, solicitacaoId, onChange }: { eventos: Evento
   );
 }
 
-function PrazoInfo({ label, value, editavel, onSave }: { label: string; value: string | null; editavel: boolean; onSave: (v: string | null) => void }) {
+/** Data completa com ano de 4 dígitos (enquanto o ano é digitado o campo passa por 0002, 0020, 0202…). */
+const dataCompleta = (v: string) => /^(19|20)\d{2}-\d{2}-\d{2}$/.test(v);
+
+function PrazoInfo({ label, value, editavel, onSave }: { label: string; value: string | null; editavel: boolean; onSave: (v: string | null) => Promise<boolean> }) {
   const [v, setV] = useState(value ?? "");
-  const atrasado = !!value && value < new Date().toISOString().slice(0, 10);
+  const enviado = useRef(value ?? ""); // o que o banco tem
+  const editando = useRef(false); // a pessoa mudou o campo e ainda não salvou
+  const pendente = useRef<string | null>(null); // valor esperando o debounce
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  // Acompanha o valor do banco (tempo real, outro usuário), sem atropelar o que está sendo digitado.
+  useEffect(() => {
+    enviado.current = value ?? "";
+    if (!editando.current) setV(value ?? "");
+  }, [value]);
+  const salvar = async (novo: string) => {
+    clearTimeout(timer.current);
+    pendente.current = null;
+    if (novo && !dataCompleta(novo)) return;
+    editando.current = false;
+    if (novo === enviado.current) return;
+    enviado.current = novo;
+    if (!(await onSave(novo || null))) {
+      enviado.current = value ?? "";
+      setV(value ?? "");
+    }
+  };
+  const salvarRef = useRef(salvar);
+  salvarRef.current = salvar;
+  // Saiu da tela logo depois de escolher a data: salva em vez de descartar.
+  useEffect(
+    () => () => {
+      clearTimeout(timer.current);
+      if (pendente.current !== null) void salvarRef.current(pendente.current);
+    },
+    [],
+  );
+  const atrasado = !!value && value < format(new Date(), "yyyy-MM-dd");
   return (
     <div>
       <dt className="text-xs text-muted-foreground">{label}</dt>
@@ -689,8 +786,27 @@ function PrazoInfo({ label, value, editavel, onSave }: { label: string; value: s
             aria-label={label}
             title={v ? undefined : "Preencher"}
             onChange={(e) => {
-              setV(e.target.value);
-              onSave(e.target.value || null);
+              // Antes salvava a cada tecla (inclusive anos incompletos). Agora espera a data ficar completa.
+              const novo = e.target.value;
+              setV(novo);
+              editando.current = true;
+              clearTimeout(timer.current);
+              pendente.current = null;
+              // Data pela metade (um campo apagado): o navegador informa "" — não é "limpar a data".
+              if (e.target.validity.badInput) return;
+              if (!novo || dataCompleta(novo)) {
+                pendente.current = novo;
+                timer.current = setTimeout(() => void salvarRef.current(novo), 800);
+              }
+            }}
+            onBlur={(e) => {
+              if (e.target.validity.badInput) {
+                // Saiu com a data pela metade: volta para a que está salva.
+                editando.current = false;
+                setV(enviado.current);
+                return;
+              }
+              if (editando.current) void salvar(e.target.value);
             }}
           />
         </dd>

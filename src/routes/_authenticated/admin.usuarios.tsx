@@ -118,6 +118,9 @@ function NovoUsuarioDialog({ onCreated }: { onCreated: () => void }) {
       if (/already|registered|exists/i.test(error.message)) return toast.error("Já existe um usuário com este e-mail.");
       return toast.error(error.message);
     }
+    // Com confirmação de e-mail ligada, o Supabase responde "sucesso" para e-mail já cadastrado,
+    // mas sem nenhuma identidade: nada foi criado.
+    if (data.user && (data.user.identities?.length ?? 0) === 0) return toast.error("Já existe um usuário com este e-mail.");
     toast.success(
       data.session
         ? `Usuário ${v.nome} criado. Ele já pode entrar.`

@@ -123,7 +123,7 @@ function ClientesPage() {
     toast.success(`${criadas.length} cards criados (1 item por card)`);
     setAlvo(null);
     navigate({ to: "/compras" });
-  });
+  }, { exigirQuantidade: true }); // item sem quantidade era recusado pelo banco e o card ficava sem itens
 
   const q = useQuery({
     queryKey: ["clientes"],

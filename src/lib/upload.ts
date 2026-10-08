@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, BUCKET } from "@/integrations/supabase/client";
 import { sanitizeFileName } from "@/lib/format";
 
@@ -66,4 +67,32 @@ export async function signedUrl(path: string, download?: string) {
     .createSignedUrl(path, 3600, download ? { download } : undefined);
   if (error) throw error;
   return data.signedUrl;
+}
+
+/**
+ * Abre (ou baixa) um arquivo do bucket. Chame direto no clique.
+ * A aba é aberta antes de buscar o link: o Safari/iPhone bloqueia como pop-up
+ * qualquer window.open feito depois de um await, e o botão "não fazia nada".
+ */
+export async function abrirArquivo(path: string, download?: string) {
+  const aba = download ? null : window.open("", "_blank");
+  try {
+    const url = await signedUrl(path, download);
+    if (download) {
+      // O link assinado com download responde como anexo: baixa sem sair da página.
+      window.location.assign(url);
+    } else if (aba) {
+      aba.opener = null;
+      aba.location.href = url;
+    } else {
+      // Pop-up bloqueado: oferece o link (o toque no botão libera a nova aba) sem sair do app.
+      toast("Arquivo pronto", {
+        duration: 15000,
+        action: { label: "Abrir", onClick: () => window.open(url, "_blank", "noopener") },
+      });
+    }
+  } catch (e) {
+    aba?.close();
+    throw e;
+  }
 }

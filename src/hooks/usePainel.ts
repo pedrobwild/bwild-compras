@@ -2,13 +2,14 @@ import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { PainelRow } from "@/lib/format";
+import { nomeCanal } from "@/lib/realtime";
 
 /** Lista do painel (paginada) + tempo real em solicitacoes/compras. */
 export function usePainel() {
   const qc = useQueryClient();
   useEffect(() => {
     const ch = supabase
-      .channel("painel-realtime")
+      .channel(nomeCanal("painel-realtime"))
       .on("postgres_changes", { event: "*", schema: "public", table: "solicitacoes" }, () =>
         qc.invalidateQueries({ queryKey: ["painel"] }),
       )

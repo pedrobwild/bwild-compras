@@ -1,4 +1,5 @@
 import { createFileRoute, Link, Outlet, redirect, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { LayoutDashboard, PlusCircle, KanbanSquare, Users, LogOut, Building2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,10 +16,19 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 function AppLayout() {
-  const { nome, user } = useAuth();
+  const { nome, user, session, loading } = useAuth();
   const { isCompras, isAdmin, label } = useRole();
   const qc = useQueryClient();
   const navigate = useNavigate();
+
+  // Sessão encerrada com a tela aberta (saiu em outra aba, token expirou): volta ao login
+  // em vez de mostrar listas vazias, já que sem login o banco não devolve nada.
+  useEffect(() => {
+    if (!loading && !session) {
+      qc.clear();
+      navigate({ to: "/login", replace: true });
+    }
+  }, [loading, session, qc, navigate]);
 
   const items = [
     { to: "/painel", label: "Painel", icon: LayoutDashboard, show: true },

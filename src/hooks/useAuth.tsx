@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -17,10 +17,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [roles, setRoles] = useState<Role[]>([]);
   const [nome, setNome] = useState("");
   const [loading, setLoading] = useState(true);
+  const sessaoLida = useRef(false);
 
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
     supabase.auth.getSession().then(({ data }) => {
+      sessaoLida.current = true;
       setSession(data.session);
       if (!data.session) setLoading(false);
     });
@@ -32,17 +34,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!uid) {
       setRoles([]);
       setNome("");
+      // Saiu da conta (ou a sessão expirou) enquanto os papéis carregavam: não fica "carregando" para sempre.
+      if (sessaoLida.current) setLoading(false);
       return;
     }
+    // Ignora a resposta de um usuário anterior (sair e entrar com outra conta rapidamente).
+    let ativo = true;
     setLoading(true);
     Promise.all([
       supabase.from("user_roles").select("role").eq("user_id", uid),
       supabase.from("profiles").select("nome").eq("id", uid).maybeSingle(),
-    ]).then(([r, p]) => {
-      setRoles(((r.data ?? []) as { role: Role }[]).map((x) => x.role));
-      setNome((p.data as { nome?: string } | null)?.nome ?? "");
-      setLoading(false);
-    });
+    ])
+      .then(([r, p]) => {
+        if (!ativo) return;
+        setRoles(((r.data ?? []) as { role: Role }[]).map((x) => x.role));
+        setNome((p.data as { nome?: string } | null)?.nome ?? "");
+      })
+      .catch(() => {
+        /* sem papéis carregados: o app segue como solicitante */
+      })
+      .finally(() => {
+        if (ativo) setLoading(false);
+      });
+    return () => {
+      ativo = false;
+    };
   }, [uid]);
 
   return (

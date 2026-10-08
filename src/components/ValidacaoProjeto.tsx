@@ -107,7 +107,13 @@ function inicial(r: ResultadoExtracao): Rascunho {
 /* Hook: leitura do PDF + modal de progresso + tela de validação       */
 /* ------------------------------------------------------------------ */
 
-export function useLeituraProjeto(onApply: (v: ValidacaoAplicada, nomeArquivo: string) => void | Promise<void>) {
+export function useLeituraProjeto(
+  onApply: (v: ValidacaoAplicada, nomeArquivo: string) => void | Promise<void>,
+  opcoes?: {
+    /** Itens gravados direto no banco (quantidade obrigatória): não deixa aplicar com quantidade em branco. */
+    exigirQuantidade?: boolean;
+  },
+) {
   const [etapa, setEtapa] = useState<null | { tipo: "pdf"; atual: number; total: number } | { tipo: "ia" }>(null);
   const [res, setRes] = useState<{ nome: string; r: ResultadoExtracao } | null>(null);
 
@@ -148,9 +154,11 @@ export function useLeituraProjeto(onApply: (v: ValidacaoAplicada, nomeArquivo: s
         <ValidacaoProjeto
           nomeArquivo={res.nome}
           resultado={res.r}
+          exigirQuantidade={opcoes?.exigirQuantidade}
           onClose={() => setRes(null)}
           onApply={async (v) => {
             await onApply(v, res.nome);
+            limparRascunho(res.nome);
             setRes(null);
           }}
         />
@@ -171,12 +179,13 @@ const CONF: Record<Confianca | "revisado" | "manual", { label: string; cls: stri
 };
 
 export function ValidacaoProjeto({
-  nomeArquivo, resultado, onClose, onApply,
+  nomeArquivo, resultado, onClose, onApply, exigirQuantidade,
 }: {
   nomeArquivo: string;
   resultado: ResultadoExtracao;
   onClose: () => void;
   onApply: (v: ValidacaoAplicada) => void | Promise<void>;
+  exigirQuantidade?: boolean;
 }) {
   const [d, setD] = useState<Rascunho>(() => {
     try {
@@ -195,7 +204,14 @@ export function ValidacaoProjeto({
   const [busca, setBusca] = useState("");
   const [fCat, setFCat] = useState("todas");
   const [fAmb, setFAmb] = useState("todos");
-  const [soRevisar, setSoRevisar] = useState(false);
+  // Os filtros guardam quais itens mostrar no momento em que foram ligados: assim o item não some
+  // da tela enquanto a pessoa ainda está digitando nele (antes sumia na primeira tecla).
+  const [revisarKeys, setRevisarKeys] = useState<Set<string> | null>(null);
+  const [semQtdKeys, setSemQtdKeys] = useState<Set<string> | null>(null);
+  const filtrarRevisar = (on: boolean) =>
+    setRevisarKeys(on ? new Set(d.itens.filter((i) => i.confianca !== "alta" && !i.revisado).map((i) => i.key)) : null);
+  const filtrarSemQtd = (on: boolean) =>
+    setSemQtdKeys(on ? new Set(d.itens.filter((i) => parseQtd(i.quantidade) == null).map((i) => i.key)) : null);
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [fechados, setFechados] = useState<Set<string>>(new Set());
   const [novoAviso, setNovoAviso] = useState("");
@@ -215,13 +231,18 @@ export function ValidacaoProjeto({
       action: { label: "Desfazer", onClick: () => setD((p) => ({ ...p, itens: snapshot })) },
     });
   };
-  const duplicar = (key: string) =>
+  const duplicar = (key: string) => {
+    const novo = uid();
     setD((p) => {
       const i = p.itens.findIndex((x) => x.key === key);
       const c = [...p.itens];
-      c.splice(i + 1, 0, { ...p.itens[i], key: uid() });
+      c.splice(i + 1, 0, { ...p.itens[i], key: novo });
       return { ...p, itens: c };
     });
+    // A cópia aparece mesmo com um filtro ligado.
+    setRevisarKeys((s) => (s ? new Set(s).add(novo) : s));
+    setSemQtdKeys((s) => (s ? new Set(s).add(novo) : s));
+  };
   const adicionar = () => {
     const it: VItem = {
       key: uid(), descricao: "", categoria: fCat !== "todas" ? fCat : "Outros", quantidade: "", unidade: "un", ambiente: fAmb !== "todos" ? fAmb : "",
@@ -229,7 +250,8 @@ export function ValidacaoProjeto({
     };
     setD((p) => ({ ...p, itens: [it, ...p.itens] }));
     setBusca("");
-    setSoRevisar(false);
+    setRevisarKeys(null);
+    setSemQtdKeys(null);
   };
   const emMassa = (patch: Partial<VItem>) => {
     setD((p) => ({ ...p, itens: p.itens.map((i) => (sel.has(i.key) ? { ...i, ...patch, revisado: i.confianca !== "alta" ? true : i.revisado } : i)) }));
@@ -241,11 +263,12 @@ export function ValidacaoProjeto({
     return d.itens.filter((i) => {
       if (fCat !== "todas" && i.categoria !== fCat) return false;
       if (fAmb !== "todos" && i.ambiente !== fAmb) return false;
-      if (soRevisar && (i.confianca === "alta" || i.revisado)) return false;
+      if (revisarKeys && !revisarKeys.has(i.key)) return false;
+      if (semQtdKeys && !semQtdKeys.has(i.key)) return false;
       if (t && ![i.descricao, i.especificacao, i.referencia_projeto, i.observacao].some((v) => v.toLowerCase().includes(t))) return false;
       return true;
     });
-  }, [d.itens, busca, fCat, fAmb, soRevisar]);
+  }, [d.itens, busca, fCat, fAmb, revisarKeys, semQtdKeys]);
 
   const grupos = useMemo(() => {
     const m = new Map<string, VItem[]>();
@@ -260,6 +283,17 @@ export function ValidacaoProjeto({
     if (semDesc.length) return toast.error(`${semDesc.length} item(ns) sem descrição. Preencha ou exclua antes de aplicar.`);
     if (d.itens.length === 0) return toast.error("Nenhum item para aplicar.");
     const semQtd = d.itens.filter((i) => parseQtd(i.quantidade) == null).length;
+    if (semQtd && exigirQuantidade) {
+      // Sem isso o banco recusava o lote inteiro (quantidade é obrigatória) e o card ficava sem itens.
+      // Mostra só os itens sem quantidade, sem outro filtro escondendo algum deles.
+      filtrarSemQtd(true);
+      setRevisarKeys(null);
+      setBusca("");
+      setFCat("todas");
+      setFAmb("todos");
+      setFechados(new Set());
+      return toast.error(`${semQtd} item(ns) sem quantidade. Informe a quantidade ou exclua esses itens antes de aplicar.`);
+    }
     if (semQtd) toast.warning(`${semQtd} item(ns) sem quantidade — informe antes de enviar a solicitação.`);
     setAplicando(true);
     try {
@@ -333,7 +367,7 @@ export function ValidacaoProjeto({
           {/* Bloco 3 */}
           <section className="rounded-lg border bg-card p-3 md:p-4">
             <h3 className="font-semibold">Itens identificados</h3>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-[1fr_200px_180px_auto_auto]">
+            <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-[1fr_200px_180px_auto_auto_auto]">
               <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input className="pl-8" placeholder="Buscar item" value={busca} onChange={(e) => setBusca(e.target.value)} />
@@ -347,7 +381,10 @@ export function ValidacaoProjeto({
                 <SelectContent><SelectItem value="todos">Todos os ambientes</SelectItem>{AMBIENTES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
               </Select>
               <label className="flex min-h-10 items-center gap-2 rounded-md border px-3 text-sm">
-                <Checkbox checked={soRevisar} onCheckedChange={(v) => setSoRevisar(!!v)} /> Somente para revisar
+                <Checkbox checked={!!revisarKeys} onCheckedChange={(v) => filtrarRevisar(!!v)} /> Somente para revisar
+              </label>
+              <label className="flex min-h-10 items-center gap-2 rounded-md border px-3 text-sm">
+                <Checkbox checked={!!semQtdKeys} onCheckedChange={(v) => filtrarSemQtd(!!v)} /> Somente sem quantidade
               </label>
               <Button type="button" onClick={adicionar}><Plus className="h-4 w-4" /> Adicionar item</Button>
             </div>

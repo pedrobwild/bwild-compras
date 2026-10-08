@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useFieldArray, useForm, Controller, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -17,6 +17,7 @@ import { uploadAnexo } from "@/lib/upload";
 import { AMBIENTES, CATEGORIAS, UNIDADES } from "@/lib/format";
 import { Switch } from "@/components/ui/switch";
 import { useLeituraProjeto, limparRascunho, type ValidacaoAplicada } from "@/components/ValidacaoProjeto";
+import { useRecursosBanco } from "@/hooks/useRecursos";
 
 export const Route = createFileRoute("/_authenticated/solicitacoes/nova")({
   head: () => ({
@@ -54,11 +55,17 @@ const schema = z.object({
   titulo: z.string().trim().min(1, "Informe um título").max(200),
   descricao: z.string().trim().max(2000).optional(),
   prioridade: z.enum(["baixa", "normal", "urgente"]),
-  prazo_compra: z.string().min(1, "Informe o prazo para efetivar a compra"),
+  prazo_compra: z.string().optional(),
   data_necessaria: z.string().min(1, "Informe o prazo para o item chegar"),
   itens: z.array(itemSchema).min(1, "Adicione pelo menos 1 item"),
 });
 type FormValues = z.infer<typeof schema>;
+// "Prazo para efetivar a compra" só aparece e só é exigido quando o banco tem a coluna prazo_compra
+// (antes era obrigatório na tela e o valor era descartado ao salvar).
+const resolverSemPrazoCompra = zodResolver(schema) as unknown as Resolver<FormValues>;
+const resolverComPrazoCompra = zodResolver(
+  schema.extend({ prazo_compra: z.string().min(1, "Informe o prazo para efetivar a compra") }),
+) as unknown as Resolver<FormValues>;
 
 const emptyItem = { descricao: "", quantidade: 1, unidade: "un", ambiente: "", referencia_projeto: "", observacao: "", categoria: "", especificacao: "", link_referencia: "", origem: "manual" as const };
 
@@ -92,8 +99,11 @@ function NovaSolicitacao() {
     },
   });
 
+  const recursos = useRecursosBanco();
+  const exigePrazoCompra = useRef(recursos.prazoCompra);
+  exigePrazoCompra.current = recursos.prazoCompra;
   const form = useForm<FormValues>({
-    resolver: zodResolver(schema) as unknown as Resolver<FormValues>,
+    resolver: (valores, ctx, opcoes) => (exigePrazoCompra.current ? resolverComPrazoCompra : resolverSemPrazoCompra)(valores, ctx, opcoes),
     defaultValues: { prioridade: "normal", itens: [emptyItem] },
   });
   const { fields, append, remove, replace } = useFieldArray({ control: form.control, name: "itens" });
@@ -167,7 +177,7 @@ function NovaSolicitacao() {
         descricao: v.descricao || null,
         prioridade: v.prioridade,
         data_necessaria: v.data_necessaria || null,
-        prazo_compra: v.prazo_compra || null,
+        ...(recursos.prazoCompra ? { prazo_compra: v.prazo_compra || null } : {}),
         area_m2: extra.area_m2,
         prazo_obra: extra.prazo_obra,
         extracao_id: extra.extracao_id,
@@ -288,11 +298,13 @@ function NovaSolicitacao() {
               </Select>
             )} />
           </div>
-          <div className="space-y-1.5">
-            <Label>Prazo para efetivar a compra *</Label>
-            <Input type="date" {...form.register("prazo_compra")} />
-            {form.formState.errors.prazo_compra && <p className="text-xs text-destructive">{form.formState.errors.prazo_compra.message}</p>}
-          </div>
+          {recursos.prazoCompra && (
+            <div className="space-y-1.5">
+              <Label>Prazo para efetivar a compra *</Label>
+              <Input type="date" {...form.register("prazo_compra")} />
+              {form.formState.errors.prazo_compra && <p className="text-xs text-destructive">{form.formState.errors.prazo_compra.message}</p>}
+            </div>
+          )}
           <div className="space-y-1.5">
             <Label>Prazo para o item chegar na obra *</Label>
             <Input type="date" {...form.register("data_necessaria")} />
