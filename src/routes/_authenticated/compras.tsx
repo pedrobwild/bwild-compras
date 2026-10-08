@@ -32,6 +32,7 @@ export const Route = createFileRoute("/_authenticated/compras")({
 
 const COLS: { key: Status; dot: string }[] = [
   { key: "nova", dot: "bg-status-nova" },
+  { key: "cronograma_confirmado", dot: "bg-status-entregue" },
   { key: "em_cotacao", dot: "bg-status-cotacao" },
   { key: "aguardando_aprovacao", dot: "bg-status-aprovacao" },
   { key: "aprovada", dot: "bg-status-aprovada" },
@@ -87,6 +88,8 @@ function Fila() {
   const moverPara = async (id: string, status: Status) => {
     const row = (data ?? []).find((r) => r.id === id);
     if (!row || row.status === status) return;
+    if (status === "cronograma_confirmado" && !row.data_necessaria)
+      return void toast.error("Preencha o prazo para o item chegar na obra antes de confirmar o cronograma.");
     if ((status === "aprovada" || row.status === "aguardando_aprovacao") && !isAdmin)
       return void toast.error("Somente o admin pode aprovar ou tirar uma solicitação da etapa Aprovação.");
     if (status === "aprovada" && row.status !== "aguardando_aprovacao")

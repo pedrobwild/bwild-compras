@@ -50,13 +50,14 @@ interface Evento { id: string; tipo: string; descricao: string | null; usuario_i
 
 const STEPS: { key: Status; label: string }[] = [
   { key: "nova", label: "Nova" },
+  { key: "cronograma_confirmado", label: "Cronograma confirmado" },
   { key: "em_cotacao", label: "Em cotação" },
   { key: "aguardando_aprovacao", label: "Aprovação" },
   { key: "aprovada", label: "Aprovado" },
   { key: "comprada", label: "Comprada" },
   { key: "entregue", label: "Entregue" },
 ];
-const stepIndex = (s: Status) => (s === "entregue_parcial" ? 4.5 : STEPS.findIndex((x) => x.key === s));
+const stepIndex = (s: Status) => (s === "entregue_parcial" ? 5.5 : STEPS.findIndex((x) => x.key === s));
 
 function Detalhe() {
   const { id } = Route.useParams();
@@ -135,6 +136,13 @@ function Detalhe() {
   const total = d.compras.reduce((a, c) => a + Number(c.valor_total ?? 0), 0);
 
   const update = async (patch: Partial<Solicitacao>, msg: string) => {
+    const novoStatus = patch.status ?? s.status;
+    const novaData = "data_necessaria" in patch ? patch.data_necessaria : s.data_necessaria;
+    if (novoStatus === "cronograma_confirmado" && !novaData) {
+      if (patch.status === "cronograma_confirmado") return void toast.error("Preencha o prazo para o item chegar na obra antes de confirmar o cronograma.");
+      patch = { ...patch, status: "nova" };
+      msg += " — card voltou para Nova (sem prazo de chegada)";
+    }
     const { error } = await supabase.from("solicitacoes").update(patch).eq("id", id);
     if (error) return toast.error("Não foi possível atualizar: " + error.message);
     toast.success(msg);
