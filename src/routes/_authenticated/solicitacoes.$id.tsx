@@ -1,9 +1,9 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  ArrowLeft, Download, ExternalLink, FileText, Hand, Plus, ShoppingCart, Trash2, Truck, Pencil, XCircle, MessageSquare, Check,
+  ArrowLeft, Download, ExternalLink, FileText, Hand, Plus, ShoppingCart, Split, Trash2, Truck, Pencil, XCircle, MessageSquare, Check,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, useRole } from "@/hooks/useAuth";
