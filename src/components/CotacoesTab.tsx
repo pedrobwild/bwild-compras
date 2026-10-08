@@ -26,6 +26,17 @@ interface Cotacao {
   escolhida: boolean;
 }
 
+interface CotacaoAnexo {
+  id: string;
+  cotacao_id: string;
+  nome_arquivo: string;
+  storage_path: string;
+  tamanho_bytes: number | null;
+  tipo_mime: string | null;
+}
+
+const ACCEPT_ANEXO = ".pdf,.png,.jpg,.jpeg";
+
 export function CotacoesTab({ solicitacaoId, podeEditar }: { solicitacaoId: string; podeEditar: boolean }) {
   const qc = useQueryClient();
   const key = ["cotacoes", solicitacaoId];
