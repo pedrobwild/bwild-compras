@@ -597,23 +597,28 @@ function Timeline({ eventos, nomes, solicitacaoId, onChange }: { eventos: Evento
 }
 
 function PrazoInfo({ label, value, editavel, onSave }: { label: string; value: string | null; editavel: boolean; onSave: (v: string | null) => void }) {
-  const [edit, setEdit] = useState(false);
   const [v, setV] = useState(value ?? "");
   const atrasado = !!value && value < new Date().toISOString().slice(0, 10);
   return (
     <div>
       <dt className="text-xs text-muted-foreground">{label}</dt>
-      {edit ? (
-        <dd className="mt-1 flex gap-1">
-          <Input type="date" className="h-9" value={v} onChange={(e) => setV(e.target.value)} aria-label={label} />
-          <Button size="sm" onClick={() => { setEdit(false); onSave(v || null); }}>OK</Button>
+      {editavel ? (
+        <dd className="mt-1">
+          <Input
+            type="date"
+            className={cn("h-9", !v && "border-destructive/60 text-destructive")}
+            value={v}
+            aria-label={label}
+            title={v ? undefined : "Preencher"}
+            onChange={(e) => {
+              setV(e.target.value);
+              onSave(e.target.value || null);
+            }}
+          />
         </dd>
       ) : (
         <dd className={cn("font-medium", !value && "text-destructive")}>
           {value ? fmtDate(value) : "Preencher"}
-          {editavel && (
-            <button type="button" className="ml-2 text-xs text-accent underline" onClick={() => { setV(value ?? ""); setEdit(true); }}>alterar</button>
-          )}
           {atrasado && <span className="sr-only"> (vencido)</span>}
         </dd>
       )}
