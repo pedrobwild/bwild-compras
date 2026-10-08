@@ -182,6 +182,32 @@ function Fila() {
   );
 }
 
+function RangePicker({ label, value, onChange }: { label: string; value: DateRange | undefined; onChange: (r: DateRange | undefined) => void }) {
+  const texto = value?.from
+    ? `${format(value.from, "dd/MM/yyyy")}${value.to ? ` – ${format(value.to, "dd/MM/yyyy")}` : ""}`
+    : label;
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="outline" className={cn("justify-start gap-2 text-left font-normal", !value?.from && "text-muted-foreground")} aria-label={`Filtrar por ${label.toLowerCase()}`}>
+          <CalendarIcon className="h-4 w-4" />
+          <span className="truncate">{texto}</span>
+          {value?.from && (
+            <X
+              className="ml-1 h-3.5 w-3.5 shrink-0 text-muted-foreground hover:text-foreground"
+              aria-label={`Limpar filtro de ${label.toLowerCase()}`}
+              onClick={(e) => { e.stopPropagation(); onChange(undefined); }}
+            />
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar mode="range" selected={value} onSelect={onChange} locale={ptBR} numberOfMonths={1} className="pointer-events-auto p-3" />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function KCard({ r, porCliente, draggable, dragging, onDragStart, onDragEnd }: { r: PainelRow; porCliente?: boolean; draggable?: boolean; dragging?: boolean; onDragStart?: () => void; onDragEnd?: () => void }) {
   const dias = differenceInCalendarDays(new Date(), parseISO(r.created_at));
   return (
