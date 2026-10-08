@@ -142,6 +142,13 @@ function Fila() {
             {clientes.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
           </SelectContent>
         </Select>
+        <RangePicker label="Data de compra" value={compraRange} onChange={setCompraRange} />
+        <RangePicker label="Data de entrega" value={entregaRange} onChange={setEntregaRange} />
+        {(compraRange?.from || entregaRange?.from) && (
+          <Button variant="ghost" size="sm" onClick={() => { setCompraRange(undefined); setEntregaRange(undefined); }}>
+            Limpar datas
+          </Button>
+        )}
       </div>
       {colunas.length === 0 && <EmptyState title="Nenhuma solicitação na fila." />}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
