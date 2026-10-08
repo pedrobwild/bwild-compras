@@ -158,24 +158,29 @@ function NovaSolicitacao() {
   const onSubmit = async (v: FormValues) => {
     setSaving(true);
     try {
-      const { data: sol, error } = await supabase
-        .from("solicitacoes")
-        .insert({
-          cliente: v.cliente,
-          empreendimento: v.empreendimento || null,
-          unidade: v.unidade || null,
-          endereco_obra: v.endereco_obra || null,
-          titulo: v.titulo,
-          descricao: v.descricao || null,
-          prioridade: v.prioridade,
-          data_necessaria: v.data_necessaria || null,
-          prazo_compra: v.prazo_compra || null,
-          area_m2: extra.area_m2,
-          prazo_obra: extra.prazo_obra,
-          extracao_id: extra.extracao_id,
-        })
-        .select("id, codigo")
-        .single();
+      const payload: Record<string, unknown> = {
+        cliente: v.cliente,
+        empreendimento: v.empreendimento || null,
+        unidade: v.unidade || null,
+        endereco_obra: v.endereco_obra || null,
+        titulo: v.titulo,
+        descricao: v.descricao || null,
+        prioridade: v.prioridade,
+        data_necessaria: v.data_necessaria || null,
+        prazo_compra: v.prazo_compra || null,
+        area_m2: extra.area_m2,
+        prazo_obra: extra.prazo_obra,
+        extracao_id: extra.extracao_id,
+      };
+      // Se o banco ainda não tiver alguma coluna nova, remove e tenta de novo.
+      let res = await supabase.from("solicitacoes").insert(payload as never).select("id, codigo").single();
+      for (let t = 0; t < 5 && res.error; t++) {
+        const m = /'([a-z_0-9]+)' column/i.exec(res.error.message ?? "");
+        if (!m || !(m[1] in payload)) break;
+        delete payload[m[1]];
+        res = await supabase.from("solicitacoes").insert(payload as never).select("id, codigo").single();
+      }
+      const { data: sol, error } = res;
       if (error) throw error;
       const id = sol.id as string;
 
