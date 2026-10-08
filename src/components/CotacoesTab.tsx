@@ -50,16 +50,83 @@ export function CotacoesTab({ solicitacaoId, podeEditar }: { solicitacaoId: stri
     retry: false,
   });
   const [edit, setEdit] = useState<Cotacao | null | "new">(null);
-  const refresh = () => qc.invalidateQueries({ queryKey: key });
+  const [enviando, setEnviando] = useState<string | null>(null);
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: key });
+    qc.invalidateQueries({ queryKey: ["cotacao-anexos", solicitacaoId] });
+  };
+
+  const anexosQ = useQuery({
+    queryKey: ["cotacao-anexos", solicitacaoId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("cotacao_anexos")
+        .select("*")
+        .order("created_at");
+      if (error) {
+        if (/cotacao_anexos|schema cache|does not exist/i.test(error.message)) return [] as CotacaoAnexo[];
+        throw error;
+      }
+      return (data ?? []) as CotacaoAnexo[];
+    },
+    retry: false,
+  });
+  const anexosPorCotacao = new Map<string, CotacaoAnexo[]>();
+  for (const a of anexosQ.data ?? []) {
+    const l = anexosPorCotacao.get(a.cotacao_id) ?? [];
+    l.push(a);
+    anexosPorCotacao.set(a.cotacao_id, l);
+  }
 
   useEffect(() => {
     const ch = supabase
       .channel(`cot-${solicitacaoId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "cotacoes", filter: `solicitacao_id=eq.${solicitacaoId}` }, refresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "cotacao_anexos" }, refresh)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [solicitacaoId]);
+
+  const anexar = async (cotacaoId: string, files: FileList | null) => {
+    if (!files?.length) return;
+    setEnviando(cotacaoId);
+    try {
+      for (const file of Array.from(files)) {
+        const path = await uploadArquivoCotacao(solicitacaoId, cotacaoId, file);
+        const { error } = await supabase.from("cotacao_anexos").insert({
+          cotacao_id: cotacaoId,
+          nome_arquivo: file.name,
+          storage_path: path,
+          tamanho_bytes: file.size,
+          tipo_mime: file.type || null,
+        });
+        if (error) throw error;
+      }
+      toast.success(files.length > 1 ? `${files.length} anexos enviados` : "Anexo enviado");
+      refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao enviar anexo");
+    } finally {
+      setEnviando(null);
+    }
+  };
+
+  const abrirAnexo = async (a: CotacaoAnexo) => {
+    try {
+      window.open(await signedUrl(a.storage_path), "_blank", "noopener");
+    } catch {
+      toast.error("Não foi possível abrir o anexo");
+    }
+  };
+
+  const excluirAnexo = async (a: CotacaoAnexo) => {
+    if (!confirm(`Excluir o anexo ${a.nome_arquivo}?`)) return;
+    const { error } = await supabase.from("cotacao_anexos").delete().eq("id", a.id);
+    if (error) return toast.error(error.message);
+    toast.success("Anexo excluído");
+    refresh();
+  };
 
   if (q.isLoading) return <LoadingList />;
   if (q.error) {
