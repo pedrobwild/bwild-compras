@@ -48,6 +48,41 @@ function Fila() {
   const [cliente, setCliente] = useState("todos");
   const [dragId, setDragId] = useState<string | null>(null);
   const [overCol, setOverCol] = useState<string | null>(null);
+  const [compraRange, setCompraRange] = useState<DateRange | undefined>();
+  const [entregaRange, setEntregaRange] = useState<DateRange | undefined>();
+
+  // Datas de compra/entrega não existem na view do painel: busca direto na tabela compras.
+  const comprasQ = useQuery({
+    queryKey: ["compras-datas-fila"],
+    queryFn: async () => {
+      const { data: rows, error: err } = await supabase.from("compras").select("solicitacao_id, data_compra, previsao_entrega");
+      if (err) throw err;
+      const map = new Map<string, { data_compra: string | null; previsao_entrega: string | null }[]>();
+      for (const c of rows ?? []) {
+        const list = map.get(c.solicitacao_id) ?? [];
+        list.push({ data_compra: c.data_compra, previsao_entrega: c.previsao_entrega });
+        map.set(c.solicitacao_id, list);
+      }
+      return map;
+    },
+  });
+
+  const noPeriodo = (iso: string | null | undefined, range?: DateRange) => {
+    if (!range?.from) return true;
+    if (!iso) return false;
+    const d = parseISO(iso);
+    const from = new Date(range.from.getFullYear(), range.from.getMonth(), range.from.getDate());
+    const to = range.to ? new Date(range.to.getFullYear(), range.to.getMonth(), range.to.getDate(), 23, 59, 59) : from;
+    return d >= from && d <= to;
+  };
+  const bateCompra = (id: string) => {
+    if (!compraRange?.from) return true;
+    return (comprasQ.data?.get(id) ?? []).some((c) => noPeriodo(c.data_compra, compraRange));
+  };
+  const bateEntrega = (id: string) => {
+    if (!entregaRange?.from) return true;
+    return (comprasQ.data?.get(id) ?? []).some((c) => noPeriodo(c.previsao_entrega, entregaRange));
+  };
 
   const moverPara = async (id: string, status: Status) => {
     const row = (data ?? []).find((r) => r.id === id);
