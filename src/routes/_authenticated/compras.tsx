@@ -1,9 +1,14 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { differenceInCalendarDays, parseISO, subDays } from "date-fns";
-import { AlertTriangle, UserX } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { differenceInCalendarDays, format, parseISO, subDays } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import type { DateRange } from "react-day-picker";
+import { AlertTriangle, CalendarIcon, UserX, X } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { usePainel } from "@/hooks/usePainel";
@@ -43,6 +48,41 @@ function Fila() {
   const [cliente, setCliente] = useState("todos");
   const [dragId, setDragId] = useState<string | null>(null);
   const [overCol, setOverCol] = useState<string | null>(null);
+  const [compraRange, setCompraRange] = useState<DateRange | undefined>();
+  const [entregaRange, setEntregaRange] = useState<DateRange | undefined>();
+
+  // Datas de compra/entrega não existem na view do painel: busca direto na tabela compras.
+  const comprasQ = useQuery({
+    queryKey: ["compras-datas-fila"],
+    queryFn: async () => {
+      const { data: rows, error: err } = await supabase.from("compras").select("solicitacao_id, data_compra, previsao_entrega");
+      if (err) throw err;
+      const map = new Map<string, { data_compra: string | null; previsao_entrega: string | null }[]>();
+      for (const c of rows ?? []) {
+        const list = map.get(c.solicitacao_id) ?? [];
+        list.push({ data_compra: c.data_compra, previsao_entrega: c.previsao_entrega });
+        map.set(c.solicitacao_id, list);
+      }
+      return map;
+    },
+  });
+
+  const noPeriodo = (iso: string | null | undefined, range?: DateRange) => {
+    if (!range?.from) return true;
+    if (!iso) return false;
+    const d = parseISO(iso);
+    const from = new Date(range.from.getFullYear(), range.from.getMonth(), range.from.getDate());
+    const to = range.to ? new Date(range.to.getFullYear(), range.to.getMonth(), range.to.getDate(), 23, 59, 59) : from;
+    return d >= from && d <= to;
+  };
+  const bateCompra = (id: string) => {
+    if (!compraRange?.from) return true;
+    return (comprasQ.data?.get(id) ?? []).some((c) => noPeriodo(c.data_compra, compraRange));
+  };
+  const bateEntrega = (id: string) => {
+    if (!entregaRange?.from) return true;
+    return (comprasQ.data?.get(id) ?? []).some((c) => noPeriodo(c.previsao_entrega, entregaRange));
+  };
 
   const moverPara = async (id: string, status: Status) => {
     const row = (data ?? []).find((r) => r.id === id);
@@ -69,7 +109,7 @@ function Fila() {
   const limite = subDays(new Date(), 30);
   const base = (data ?? []).filter((r) => r.status !== "cancelada" && (r.status !== "entregue" || parseISO(r.updated_at) >= limite));
   const clientes = Array.from(new Set(base.map((r) => r.cliente))).sort((a, b) => a.localeCompare(b, "pt-BR"));
-  const rows = cliente === "todos" ? base : base.filter((r) => r.cliente === cliente);
+  const rows = (cliente === "todos" ? base : base.filter((r) => r.cliente === cliente)).filter((r) => bateCompra(r.id) && bateEntrega(r.id));
   const ordenar = (a: PainelRow, b: PainelRow) => Number(b.atrasada) - Number(a.atrasada) || Number(b.prioridade === "urgente") - Number(a.prioridade === "urgente") || a.created_at.localeCompare(b.created_at);
   const colunas = visao === "status"
     ? COLS.map((c) => ({ key: c.key, titulo: STATUS[c.key].label, dot: c.dot, list: rows.filter((r) => r.status === c.key).sort(ordenar) }))
@@ -102,6 +142,13 @@ function Fila() {
             {clientes.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
           </SelectContent>
         </Select>
+        <RangePicker label="Data de compra" value={compraRange} onChange={setCompraRange} />
+        <RangePicker label="Data de entrega" value={entregaRange} onChange={setEntregaRange} />
+        {(compraRange?.from || entregaRange?.from) && (
+          <Button variant="ghost" size="sm" onClick={() => { setCompraRange(undefined); setEntregaRange(undefined); }}>
+            Limpar datas
+          </Button>
+        )}
       </div>
       {colunas.length === 0 && <EmptyState title="Nenhuma solicitação na fila." />}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
@@ -132,6 +179,32 @@ function Fila() {
         })}
       </div>
     </div>
+  );
+}
+
+function RangePicker({ label, value, onChange }: { label: string; value: DateRange | undefined; onChange: (r: DateRange | undefined) => void }) {
+  const texto = value?.from
+    ? `${format(value.from, "dd/MM/yyyy")}${value.to ? ` – ${format(value.to, "dd/MM/yyyy")}` : ""}`
+    : label;
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="outline" className={cn("justify-start gap-2 text-left font-normal", !value?.from && "text-muted-foreground")} aria-label={`Filtrar por ${label.toLowerCase()}`}>
+          <CalendarIcon className="h-4 w-4" />
+          <span className="truncate">{texto}</span>
+          {value?.from && (
+            <X
+              className="ml-1 h-3.5 w-3.5 shrink-0 text-muted-foreground hover:text-foreground"
+              aria-label={`Limpar filtro de ${label.toLowerCase()}`}
+              onClick={(e) => { e.stopPropagation(); onChange(undefined); }}
+            />
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar mode="range" selected={value} onSelect={onChange} locale={ptBR} numberOfMonths={1} className="pointer-events-auto p-3" />
+      </PopoverContent>
+    </Popover>
   );
 }
 
