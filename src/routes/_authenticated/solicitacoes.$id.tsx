@@ -1,9 +1,9 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  ArrowLeft, Download, ExternalLink, FileText, Hand, Plus, ShoppingCart, Trash2, Truck, Pencil, XCircle, MessageSquare, Check,
+  ArrowLeft, Download, ExternalLink, FileText, Hand, Plus, ShoppingCart, Split, Trash2, Truck, Pencil, XCircle, MessageSquare, Check,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, useRole } from "@/hooks/useAuth";
@@ -143,6 +143,58 @@ function Detalhe() {
 
   const idx = stepIndex(s.status);
 
+  const navigate = useNavigate();
+  const [dividindo, setDividindo] = useState(false);
+
+  const excluirCard = async () => {
+    if (!window.confirm(`Excluir o card ${s.codigo}? Itens e anexos serão removidos. Essa ação não pode ser desfeita.`)) return;
+    const { error } = await supabase.from("solicitacoes").delete().eq("id", id);
+    if (error) return toast.error("Não foi possível excluir: " + error.message);
+    toast.success(`Card ${s.codigo} excluído`);
+    qc.invalidateQueries({ queryKey: ["painel"] });
+    navigate({ to: "/compras" });
+  };
+
+  const dividir = async () => {
+    if (!window.confirm(`Dividir ${s.codigo} em ${d.itens.length} cards (1 item por card)? O card original será excluído.`)) return;
+    setDividindo(true);
+    try {
+      const base = {
+        cliente: s.cliente, empreendimento: s.empreendimento, unidade: s.unidade, endereco_obra: s.endereco_obra,
+        descricao: s.descricao, prioridade: s.prioridade, data_necessaria: s.data_necessaria, prazo_compra: s.prazo_compra ?? null,
+      };
+      const criadas: string[] = [];
+      for (const it of d.itens) {
+        const { data: sol, error: eSol } = await supabase.from("solicitacoes")
+          .insert({ ...base, titulo: `${it.descricao} — ${s.empreendimento || s.cliente}${s.unidade ? ` ${s.unidade}` : ""}`.slice(0, 200) })
+          .select("id").single();
+        if (eSol) throw eSol;
+        const { error: eIt } = await supabase.from("solicitacao_itens").insert({
+          solicitacao_id: sol.id, descricao: it.descricao, quantidade: it.quantidade, unidade: it.unidade,
+          ambiente: it.ambiente, referencia_projeto: it.referencia_projeto, observacao: it.observacao,
+          categoria: it.categoria ?? null, especificacao: it.especificacao ?? null,
+          link_referencia: it.link_referencia ?? null, origem: it.origem ?? "projeto_executivo",
+        });
+        if (eIt) throw eIt;
+        criadas.push(sol.id);
+      }
+      if (d.anexos.length) {
+        await supabase.from("solicitacao_anexos").insert(
+          criadas.flatMap((sid) => d.anexos.map((a) => ({ solicitacao_id: sid, nome_arquivo: a.nome_arquivo, storage_path: a.storage_path, tamanho_bytes: a.tamanho_bytes }))),
+        );
+      }
+      const { error: eDel } = await supabase.from("solicitacoes").delete().eq("id", id);
+      if (eDel) toast.error(`Cards criados, mas não consegui excluir o card original: ${eDel.message}`);
+      else toast.success(`${criadas.length} cards criados (1 item por card)`);
+      qc.invalidateQueries({ queryKey: ["painel"] });
+      navigate({ to: "/compras" });
+    } catch (e) {
+      toast.error("Não foi possível dividir: " + ((e as { message?: string }).message ?? "erro desconhecido"));
+    } finally {
+      setDividindo(false);
+    }
+  };
+
   return (
     <div className="space-y-5">
       <Link to="/painel" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
@@ -250,8 +302,25 @@ function Detalhe() {
                 </Select>
               </div>
             )}
+            {isCompras && d.itens.length > 1 && (s.status === "nova" || s.status === "em_cotacao") && (
+              <Button variant="outline" size="sm" onClick={dividir} disabled={dividindo} title="Cria um card para cada item e exclui este card" aria-label="Dividir em um card por item">
+                <Split className="h-4 w-4" /> {dividindo ? "Dividindo…" : `Dividir em ${d.itens.length} cards (1 item por card)`}
+              </Button>
+            )}
             <Button variant="outline" size="sm" className="text-destructive" onClick={() => setCancelOpen(true)}>
               <XCircle className="h-4 w-4" /> Cancelar solicitação
+            </Button>
+            {isCompras && (
+              <Button variant="outline" size="sm" className="text-destructive" onClick={excluirCard} title="Excluir este card definitivamente" aria-label="Excluir card">
+                <Trash2 className="h-4 w-4" /> Excluir card
+              </Button>
+            )}
+          </div>
+        )}
+        {isCompras && s.status === "cancelada" && (
+          <div className="mt-5 flex flex-wrap items-center gap-2 border-t pt-4">
+            <Button variant="outline" size="sm" className="text-destructive" onClick={excluirCard} title="Excluir este card definitivamente" aria-label="Excluir card">
+              <Trash2 className="h-4 w-4" /> Excluir card
             </Button>
           </div>
         )}
