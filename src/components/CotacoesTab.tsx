@@ -195,6 +195,43 @@ export function CotacoesTab({ solicitacaoId, podeEditar }: { solicitacaoId: stri
                 <div><p className="text-xs text-muted-foreground">Validade</p><p>{fmtDate(c.validade)}</p></div>
               </div>
               {c.comentario && <p className="whitespace-pre-wrap rounded-md bg-muted/50 p-2 text-sm">{c.comentario}</p>}
+              <div className="space-y-1.5">
+                {(anexosPorCotacao.get(c.id) ?? []).map((a) => {
+                  const isImg = /^image\//.test(a.tipo_mime ?? "") || /\.(png|jpe?g)$/i.test(a.nome_arquivo);
+                  return (
+                    <div key={a.id} className="flex items-center gap-2 rounded-md border px-2 py-1.5 text-sm">
+                      {isImg ? <ImageIcon className="h-4 w-4 shrink-0 text-muted-foreground" /> : <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />}
+                      <button
+                        type="button"
+                        onClick={() => abrirAnexo(a)}
+                        className="min-w-0 flex-1 truncate text-left underline-offset-2 hover:underline"
+                        title={`Abrir ${a.nome_arquivo}`}
+                      >
+                        {a.nome_arquivo}
+                      </button>
+                      {podeEditar && (
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => excluirAnexo(a)} aria-label={`Excluir anexo ${a.nome_arquivo}`} title="Excluir anexo">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })}
+                {podeEditar && (
+                  <label className={cn("inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-dashed px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-muted/50", enviando === c.id && "pointer-events-none opacity-50")}>
+                    <Paperclip className="h-3.5 w-3.5" />
+                    {enviando === c.id ? "Enviando…" : "Anexar PDF ou imagem"}
+                    <input
+                      type="file"
+                      accept={ACCEPT_ANEXO}
+                      multiple
+                      className="hidden"
+                      aria-label="Anexar arquivo à cotação"
+                      onChange={(e) => { anexar(c.id, e.target.files); e.target.value = ""; }}
+                    />
+                  </label>
+                )}
+              </div>
               {podeEditar && (
                 <div className="flex flex-wrap gap-2 pt-1">
                   <Button size="sm" variant={c.escolhida ? "secondary" : "default"} onClick={() => escolher(c)}>
