@@ -50,14 +50,14 @@ function Usuarios() {
     enabled: isAdmin,
     queryFn: async () => {
       const [p, r] = await Promise.all([
-        supabase.from("profiles").select("id, nome, email, created_at").order("nome").limit(1000),
+        supabase.from("profiles").select("id, nome, email, created_at, acessos, ultimo_acesso").order("nome").limit(1000),
         supabase.from("user_roles").select("user_id, role").limit(1000),
       ]);
       if (p.error) throw p.error;
       if (r.error) throw r.error;
       const roles: Record<string, string[]> = {};
       for (const x of (r.data ?? []) as { user_id: string; role: string }[]) (roles[x.user_id] ??= []).push(x.role);
-      return ((p.data ?? []) as { id: string; nome: string | null; email: string | null; created_at: string }[]).map((u) => ({ ...u, roles: roles[u.id] ?? [] }));
+      return ((p.data ?? []) as { id: string; nome: string | null; email: string | null; created_at: string; acessos: number | null; ultimo_acesso: string | null }[]).map((u) => ({ ...u, roles: roles[u.id] ?? [] }));
     },
   });
 
