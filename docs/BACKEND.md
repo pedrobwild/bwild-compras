@@ -42,11 +42,15 @@ Coleção Postman **Bwild Compras — API** + ambiente **Bwild Compras — Produ
 
 Em `supabase/migrations/`, na ordem aplicada no projeto.
 
+O front verifica se o banco já tem `prazo_compra`, o status `cronograma_confirmado` e a tabela `cotacao_anexos` (`src/hooks/useRecursos.ts`) e esconde o que ainda não existe, em vez de dar erro ao salvar. Ao criar um recurso novo no banco, rode o script **antes** de publicar a tela que o usa.
+
 ## Clientes/obras, cotações e aprovação
 
 - `clientes_obras`: cadastro unificado (cliente + empreendimento/unidade/endereço/contato). Todos os logados leem; compras/admin gravam.
 - `cotacoes`: propostas por solicitação (fornecedor, valor, prazo em dias, pagamento, validade, comentário, `escolhida`). Só uma escolhida por solicitação (índice único). Escolher um fornecedor registra no histórico.
-- Fluxo de status: Nova > Em cotação > **Aprovação** (`aguardando_aprovacao`) > **Aprovado** (`aprovada`) > Comprada > Entregue.
+- `cotacao_anexos`: PDF/imagem de cada cotação (bucket `projetos-executivos`, caminho `{solicitacao_id}/cotacoes/{cotacao_id}/...`). Todos os logados leem; compras/admin gravam e excluem.
+- `solicitacoes.prazo_compra`: prazo para efetivar a compra (obrigatório na Nova solicitação, junto com `data_necessaria`).
+- Fluxo de status: Nova > **Cronograma confirmado** (`cronograma_confirmado`, exige `data_necessaria`) > Em cotação > **Aprovação** (`aguardando_aprovacao`) > **Aprovado** (`aprovada`) > Comprada > Entregue.
   - Só admin aprova ou tira da etapa Aprovação (trigger `guard_aprovacao`).
   - Compra só pode ser registrada depois de Aprovado.
   - Se todas as compras forem excluídas, a solicitação volta para Aprovado.
