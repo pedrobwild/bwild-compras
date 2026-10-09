@@ -91,7 +91,7 @@ function Usuarios() {
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">{u.nome || "—"}</p>
                 <p className="truncate text-xs text-muted-foreground">{u.email} · desde {fmtDate(u.created_at)}</p>
-                {(u.acessos ?? 0) > 0 ? (
+                {u.acessos == null ? null : u.acessos > 0 ? (
                   <p className="mt-0.5 truncate text-xs text-muted-foreground">
                     Acessou {u.acessos} {u.acessos === 1 ? "vez" : "vezes"} · último acesso {fmtDate(u.ultimo_acesso, "dd/MM/yyyy 'às' HH:mm")}
                   </p>
