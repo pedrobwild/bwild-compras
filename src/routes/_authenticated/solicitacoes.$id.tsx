@@ -23,7 +23,7 @@ import { ErrorState, EmptyState } from "@/components/States";
 import { FileDropzone, type PendingFile } from "@/components/FileDropzone";
 import { CompraDialog, RecebimentoDialog, type Compra } from "@/components/CompraDialogs";
 import { abrirArquivo, signedUrl, uploadAnexo } from "@/lib/upload";
-import { AMBIENTES, CATEGORIAS, UNIDADES, STATUS, statusDisponiveis, fmtBRL, fmtBytes, fmtDate, type Prioridade, type Status } from "@/lib/format";
+import { AMBIENTES, CATEGORIAS, UNIDADES, STATUS, statusDisponiveis, fmtBRL, fmtBytes, fmtDate, type Prioridade, type Status, diasAtrasoEntrega, fmtDias } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { nomeCanal } from "@/lib/realtime";
 import { useRecursosBanco } from "@/hooks/useRecursos";
@@ -327,9 +327,9 @@ function Detalhe() {
           <Info label="Empreendimento / Unidade" value={[s.empreendimento, s.unidade].filter(Boolean).join(" · ") || "—"} />
           <Info label="Solicitante" value={d.nomes[s.solicitante_id] ?? "—"} />
           {recursos.prazoCompra && (
-            <PrazoInfo label="Prazo para efetivar compra" value={s.prazo_compra ?? null} editavel={isCompras || isOwnerEditable} onSave={(v) => update({ prazo_compra: v }, "Prazo de compra atualizado")} />
+            <PrazoInfo label="Prazo para efetivar compra" value={s.prazo_compra ?? null} editavel={isCompras || isOwnerEditable} onSave={(v) => update({ prazo_compra: v }, "Prazo de compra atualizado")} concluido={["comprada", "entregue_parcial", "entregue", "cancelada"].includes(s.status)} />
           )}
-          <PrazoInfo label="Prazo para o item chegar" value={s.data_necessaria} editavel={isCompras || isOwnerEditable} onSave={(v) => update({ data_necessaria: v }, "Prazo de chegada atualizado")} />
+          <PrazoInfo label="Prazo para o item chegar" value={s.data_necessaria} editavel={isCompras || isOwnerEditable} onSave={(v) => update({ data_necessaria: v }, "Prazo de chegada atualizado")} concluido={["entregue", "cancelada"].includes(s.status)} />
           <Info label="Compra realizada em" value={fmtDate(compraRealizadaEm)} />
           <Info label="Responsável de compras" value={s.responsavel_compras_id ? d.nomes[s.responsavel_compras_id] ?? "—" : "Sem responsável"} />
           <Info label="Endereço da obra" value={s.endereco_obra || "—"} />
@@ -431,6 +431,11 @@ function Detalhe() {
                       <Info label="Pagamento" value={c.forma_pagamento || "—"} />
                       <Info label="Data da compra" value={fmtDate(c.data_compra)} />
                       <Info label="Previsão de entrega" value={fmtDate(c.previsao_entrega)} />
+                      {diasAtrasoEntrega(c) > 0 && (
+                        <div className="col-span-2 rounded-md bg-destructive/10 p-2 font-medium text-destructive">
+                          {c.data_entrega_real ? `Entregue com ${fmtDias(diasAtrasoEntrega(c))} de atraso` : `Entrega atrasada há ${fmtDias(diasAtrasoEntrega(c))}`}
+                        </div>
+                      )}
                       <Info label="Local" value={c.local_entrega || "—"} />
                       <Info label="Endereço" value={c.endereco_entrega || "—"} />
                     </dl>
@@ -740,7 +745,7 @@ function Timeline({ eventos, nomes, solicitacaoId, onChange }: { eventos: Evento
 /** Data completa com ano de 4 dígitos (enquanto o ano é digitado o campo passa por 0002, 0020, 0202…). */
 const dataCompleta = (v: string) => /^(19|20)\d{2}-\d{2}-\d{2}$/.test(v);
 
-function PrazoInfo({ label, value, editavel, onSave }: { label: string; value: string | null; editavel: boolean; onSave: (v: string | null) => Promise<boolean> }) {
+function PrazoInfo({ label, value, editavel, onSave, concluido = false }: { label: string; value: string | null; editavel: boolean; onSave: (v: string | null) => Promise<boolean>; concluido?: boolean }) {
   const [v, setV] = useState(value ?? "");
   const enviado = useRef(value ?? ""); // o que o banco tem
   const editando = useRef(false); // a pessoa mudou o campo e ainda não salvou
@@ -773,7 +778,9 @@ function PrazoInfo({ label, value, editavel, onSave }: { label: string; value: s
     },
     [],
   );
-  const atrasado = !!value && value < format(new Date(), "yyyy-MM-dd");
+  const hojeStr = format(new Date(), "yyyy-MM-dd");
+  const atrasado = !!value && value < hojeStr && !concluido;
+  const diasVencido = atrasado && value ? diasAtrasoEntrega({ previsao_entrega: value, data_entrega_real: null }, hojeStr) : 0;
   return (
     <div>
       <dt className="text-xs text-muted-foreground">{label}</dt>
@@ -813,8 +820,10 @@ function PrazoInfo({ label, value, editavel, onSave }: { label: string; value: s
       ) : (
         <dd className={cn("font-medium", !value && "text-destructive")}>
           {value ? fmtDate(value) : "Preencher"}
-          {atrasado && <span className="sr-only"> (vencido)</span>}
         </dd>
+      )}
+      {atrasado && diasVencido > 0 && (
+        <p className="mt-1 text-xs font-medium text-destructive">Vencido há {fmtDias(diasVencido)}</p>
       )}
     </div>
   );

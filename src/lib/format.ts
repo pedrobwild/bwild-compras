@@ -99,4 +99,44 @@ export interface PainelRow {
   locais_entrega: string | null;
   atrasada: boolean;
   via_projeto_executivo?: boolean | null;
+  /* Atraso calculado no banco (painel_solicitacoes), sempre do dia */
+  prazo_compra?: string | null;
+  dias_atraso?: number | null;
+  dias_atraso_compra?: number | null;
+  dias_atraso_entrega?: number | null;
+  dias_atraso_chegada?: number | null;
+  tipo_atraso?: TipoAtraso | null;
+  situacao_prazo?: SituacaoPrazo | null;
+  vence_em_dias?: number | null;
+}
+
+export type TipoAtraso = "compra" | "entrega" | "chegada";
+export type SituacaoPrazo = "atrasada" | "vence_hoje" | "vence_em_breve" | "no_prazo" | "sem_prazo" | "concluida";
+
+const TIPO_ATRASO: Record<TipoAtraso, string> = { compra: "Compra", entrega: "Entrega", chegada: "Chegada na obra" };
+export const fmtDias = (n: number) => `${n} ${n === 1 ? "dia" : "dias"}`;
+
+/** "Compra atrasada há 5 dias" (ou só "Atrasada" se o banco ainda não tiver a contagem) */
+export function textoAtraso(r: Pick<PainelRow, "atrasada" | "dias_atraso" | "tipo_atraso">, curto = false) {
+  if (!r.atrasada) return null;
+  const n = r.dias_atraso ?? 0;
+  const tipo = r.tipo_atraso ? TIPO_ATRASO[r.tipo_atraso] : null;
+  if (!n) return tipo ? `${tipo} atrasada` : "Atrasada";
+  if (curto) return `${tipo ?? "Atrasada"} · ${n}d`;
+  return `${tipo ? `${tipo} atrasada` : "Atrasada"} há ${fmtDias(n)}`;
+}
+
+/** "Vence hoje" / "Vence em 2 dias" para prazos dos próximos 3 dias */
+export function textoVencimento(r: Pick<PainelRow, "situacao_prazo" | "vence_em_dias">) {
+  if (r.situacao_prazo === "vence_hoje") return "Vence hoje";
+  if (r.situacao_prazo === "vence_em_breve" && r.vence_em_dias != null) return `Vence em ${fmtDias(r.vence_em_dias)}`;
+  return null;
+}
+
+/** Dias de atraso de uma entrega do fornecedor (mesma regra do banco) */
+export function diasAtrasoEntrega(c: { previsao_entrega: string | null; data_entrega_real: string | null }, hoje = format(new Date(), "yyyy-MM-dd")) {
+  if (!c.previsao_entrega) return 0;
+  const fim = c.data_entrega_real ?? hoje;
+  const d = Math.round((parseISO(fim + "T12:00:00").getTime() - parseISO(c.previsao_entrega + "T12:00:00").getTime()) / 86400000);
+  return d > 0 ? d : 0;
 }

@@ -16,7 +16,7 @@ import { useRole } from "@/hooks/useAuth";
 import { useRecursosBanco } from "@/hooks/useRecursos";
 import { PrioridadeBadge } from "@/components/badges";
 import { EmptyState, ErrorState, LoadingList } from "@/components/States";
-import { fmtDate, STATUS, type PainelRow, type Status } from "@/lib/format";
+import { fmtDate, STATUS, textoAtraso, textoVencimento, type PainelRow, type Status } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/compras")({
@@ -123,7 +123,7 @@ function Fila() {
   const base = (data ?? []).filter((r) => r.status !== "cancelada" && (r.status !== "entregue" || parseISO(r.updated_at) >= limite));
   const clientes = Array.from(new Set(base.map((r) => r.cliente))).sort((a, b) => a.localeCompare(b, "pt-BR"));
   const rows = (cliente === "todos" ? base : base.filter((r) => r.cliente === cliente)).filter((r) => bateCompra(r.id) && bateEntrega(r.id));
-  const ordenar = (a: PainelRow, b: PainelRow) => Number(b.atrasada) - Number(a.atrasada) || Number(b.prioridade === "urgente") - Number(a.prioridade === "urgente") || a.created_at.localeCompare(b.created_at);
+  const ordenar = (a: PainelRow, b: PainelRow) => Number(b.atrasada) - Number(a.atrasada) || (b.dias_atraso ?? 0) - (a.dias_atraso ?? 0) || Number(b.prioridade === "urgente") - Number(a.prioridade === "urgente") || a.created_at.localeCompare(b.created_at);
   // "Cronograma confirmado" só vira coluna quando o banco tiver esse status.
   const colsAtivas = recursos.cronograma ? COLS : COLS.filter((c) => c.key !== "cronograma_confirmado");
   const colunas = visao === "status"
@@ -246,7 +246,8 @@ function KCard({ r, porCliente, draggable, dragging, onDragStart, onDragEnd }: {
       </div>
       <div className="mt-2 flex flex-wrap gap-1.5">
         {!r.responsavel_compras_id && r.status !== "entregue" && <span className="rounded bg-status-cotacao/15 px-1.5 py-0.5 text-[11px] font-medium text-status-cotacao">Sem responsável</span>}
-        {r.atrasada && <span className="rounded bg-destructive/12 px-1.5 py-0.5 text-[11px] font-medium text-destructive">Atrasada</span>}
+        {r.atrasada && <span className="rounded bg-destructive/12 px-1.5 py-0.5 text-[11px] font-medium text-destructive" title={textoAtraso(r) ?? undefined}>{textoAtraso(r)}</span>}
+        {!r.atrasada && textoVencimento(r) && <span className="rounded bg-status-cotacao/15 px-1.5 py-0.5 text-[11px] font-medium text-status-cotacao">{textoVencimento(r)}</span>}
         {r.responsavel_nome && <span className="text-[11px] text-muted-foreground">{r.responsavel_nome}</span>}
       </div>
     </Link>

@@ -54,3 +54,18 @@ O front verifica se o banco já tem `prazo_compra`, o status `cronograma_confirm
   - Só admin aprova ou tira da etapa Aprovação (trigger `guard_aprovacao`).
   - Compra só pode ser registrada depois de Aprovado.
   - Se todas as compras forem excluídas, a solicitação volta para Aprovado.
+
+## Atraso automático (migração 20261009120000_atraso_automatico)
+
+Calculado a cada consulta, no fuso de São Paulo (`public.hoje_sp()`); não depende de rotina agendada.
+
+| Tipo | Regra | Campo em `painel_solicitacoes` |
+|---|---|---|
+| Compra | `prazo_compra` vencido e status entre Nova e Aprovada | `dias_atraso_compra` |
+| Entrega | compra registrada, sem `data_entrega_real` e `previsao_entrega` vencida | `dias_atraso_entrega` |
+| Chegada | `data_necessaria` vencida e item ainda não entregue | `dias_atraso_chegada` |
+
+- `dias_atraso` = maior dos três; `tipo_atraso` = qual deles manda (`compra`, `entrega`, `chegada`).
+- `atrasada` = `dias_atraso > 0` (antes considerava só a data necessária).
+- `situacao_prazo`: `atrasada`, `vence_hoje`, `vence_em_breve` (1 a 3 dias), `no_prazo`, `sem_prazo`, `concluida`; `vence_em_dias` = dias até o prazo aberto mais próximo.
+- Por compra: `GET /rest/v1/compras?select=*,dias_atraso_entrega` (função `dias_atraso_entrega(compras)`; entregue com atraso = entrega real − previsão).

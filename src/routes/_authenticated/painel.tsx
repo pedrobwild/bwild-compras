@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StatusBadge, PrioridadeBadge } from "@/components/badges";
 import { EmptyState, ErrorState, LoadingList } from "@/components/States";
-import { fmtBRL, fmtDate, STATUS, statusDisponiveis, type PainelRow, type Status } from "@/lib/format";
+import { fmtBRL, fmtDate, STATUS, statusDisponiveis, textoAtraso, textoVencimento, type PainelRow, type Status } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/painel")({
@@ -209,9 +209,11 @@ function Painel() {
                   <TableRow key={r.id} onClick={() => go(r.id)} className={cn("cursor-pointer", r.atrasada && "bg-destructive/5 hover:bg-destructive/10")}>
                     <TableCell className="font-medium">
                       <span className="flex items-center gap-1">
-                        {r.atrasada && <AlertTriangle className="h-3.5 w-3.5 text-destructive" aria-label="Atrasada" />}
+                        {r.atrasada && <AlertTriangle className="h-3.5 w-3.5 text-destructive" aria-label={textoAtraso(r) ?? "Atrasada"} />}
                         {r.codigo}
                       </span>
+                      {r.atrasada && <span className="block text-[11px] font-medium text-destructive">{textoAtraso(r, true)}</span>}
+                      {!r.atrasada && textoVencimento(r) && <span className="block text-[11px] font-medium text-status-cotacao">{textoVencimento(r)}</span>}
                     </TableCell>
                     <TableCell>
                       <p className="font-medium">{r.cliente}</p>
@@ -240,7 +242,7 @@ function Painel() {
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="text-xs font-medium text-muted-foreground">{r.codigo}{r.atrasada && <span className="ml-2 text-destructive">• Atrasada</span>}</p>
+                    <p className="text-xs font-medium text-muted-foreground">{r.codigo}{r.atrasada && <span className="ml-2 text-destructive">• {textoAtraso(r)}</span>}{!r.atrasada && textoVencimento(r) && <span className="ml-2 text-status-cotacao">• {textoVencimento(r)}</span>}</p>
                     <p className="truncate font-medium">{r.titulo}{r.via_projeto_executivo && <span className="ml-1.5 rounded border border-accent/40 bg-accent/10 px-1.5 py-0.5 text-[10px] font-medium text-accent">Projeto</span>}</p>
                     <p className="truncate text-sm text-muted-foreground">{r.cliente}{r.empreendimento ? ` · ${r.empreendimento}` : ""}{r.unidade ? ` · ${r.unidade}` : ""}</p>
                   </div>
