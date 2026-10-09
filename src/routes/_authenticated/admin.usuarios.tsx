@@ -50,7 +50,8 @@ function Usuarios() {
     enabled: isAdmin,
     queryFn: async () => {
       // Se o script acessos_usuarios.sql ainda não foi rodado, busca sem os campos de acesso.
-      let p = await supabase.from("profiles").select("id, nome, email, created_at, acessos, ultimo_acesso").order("nome").limit(1000);
+      let p: { data: Record<string, unknown>[] | null; error: { message: string } | null } = await supabase
+        .from("profiles").select("id, nome, email, created_at, acessos, ultimo_acesso").order("nome").limit(1000);
       if (p.error && /acessos|ultimo_acesso/i.test(p.error.message)) {
         p = await supabase.from("profiles").select("id, nome, email, created_at").order("nome").limit(1000);
       }
