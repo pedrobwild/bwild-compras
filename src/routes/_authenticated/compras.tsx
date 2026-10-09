@@ -242,12 +242,12 @@ function KCard({ r, porCliente, draggable, dragging, onDragStart, onDragEnd }: {
       <p className="truncate text-xs text-muted-foreground">{porCliente ? `${STATUS[r.status].label}${r.empreendimento ? " · " + r.empreendimento : ""}` : r.cliente}</p>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         <PrioridadeBadge prioridade={r.prioridade} />
-        {r.data_necessaria && <span className={cn("text-xs", r.atrasada ? "font-medium text-destructive" : "text-muted-foreground")}>até {fmtDate(r.data_necessaria)}</span>}
+        {r.data_necessaria && <span className={cn("text-xs", (r.dias_atraso_chegada ?? 0) > 0 || (r.dias_atraso == null && r.atrasada) ? "font-medium text-destructive" : "text-muted-foreground")}>até {fmtDate(r.data_necessaria)}</span>}
       </div>
       <div className="mt-2 flex flex-wrap gap-1.5">
         {!r.responsavel_compras_id && r.status !== "entregue" && <span className="rounded bg-status-cotacao/15 px-1.5 py-0.5 text-[11px] font-medium text-status-cotacao">Sem responsável</span>}
-        {r.atrasada && <span className="rounded bg-destructive/12 px-1.5 py-0.5 text-[11px] font-medium text-destructive" title={textoAtraso(r) ?? undefined}>{textoAtraso(r)}</span>}
-        {!r.atrasada && textoVencimento(r) && <span className="rounded bg-status-cotacao/15 px-1.5 py-0.5 text-[11px] font-medium text-status-cotacao">{textoVencimento(r)}</span>}
+        {r.atrasada && <span className="whitespace-nowrap rounded bg-destructive/12 px-1.5 py-0.5 text-[11px] font-medium text-destructive" title={textoAtraso(r) ?? undefined}>{textoAtraso(r, true)}</span>}
+        {!r.atrasada && textoVencimento(r) && <span className="whitespace-nowrap rounded bg-status-cotacao/15 px-1.5 py-0.5 text-[11px] font-medium text-status-cotacao">{textoVencimento(r)}</span>}
         {r.responsavel_nome && <span className="text-[11px] text-muted-foreground">{r.responsavel_nome}</span>}
       </div>
     </Link>

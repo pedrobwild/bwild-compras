@@ -221,7 +221,7 @@ function Painel() {
                     </TableCell>
                     <TableCell className="max-w-[260px] truncate">{r.titulo}{r.via_projeto_executivo && <span className="ml-1.5 rounded border border-accent/40 bg-accent/10 px-1.5 py-0.5 text-[10px] font-medium text-accent">Projeto</span>}</TableCell>
                     <TableCell><PrioridadeBadge prioridade={r.prioridade} /></TableCell>
-                    <TableCell className={cn(r.atrasada && "font-medium text-destructive")}>{fmtDate(r.data_necessaria)}</TableCell>
+                    <TableCell className={cn(((r.dias_atraso_chegada ?? 0) > 0 || (r.dias_atraso == null && r.atrasada)) && "font-medium text-destructive")}>{fmtDate(r.data_necessaria)}</TableCell>
                     <TableCell><StatusBadge status={r.status} /></TableCell>
                     <TableCell className="max-w-[160px] truncate text-sm">{r.fornecedores || "—"}</TableCell>
                     <TableCell className="text-right tabular-nums">{r.custo_total ? fmtBRL(r.custo_total) : "—"}</TableCell>

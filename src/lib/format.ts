@@ -122,7 +122,7 @@ export function textoAtraso(r: Pick<PainelRow, "atrasada" | "dias_atraso" | "tip
   const n = r.dias_atraso ?? 0;
   const tipo = r.tipo_atraso ? TIPO_ATRASO[r.tipo_atraso] : null;
   if (!n) return tipo ? `${tipo} atrasada` : "Atrasada";
-  if (curto) return `${tipo ?? "Atrasada"} · ${n}d`;
+  if (curto) return `${tipo ? `${tipo} atrasada` : "Atrasada"} · ${n}d`;
   return `${tipo ? `${tipo} atrasada` : "Atrasada"} há ${fmtDias(n)}`;
 }
 
