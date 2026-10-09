@@ -18,6 +18,8 @@ import { AMBIENTES, CATEGORIAS, UNIDADES } from "@/lib/format";
 import { Switch } from "@/components/ui/switch";
 import { useLeituraProjeto, limparRascunho, type ValidacaoAplicada } from "@/components/ValidacaoProjeto";
 import { useRecursosBanco } from "@/hooks/useRecursos";
+import { ClientePicker } from "@/components/ClientePicker";
+import { normalizar, rotuloCliente, sugerirCliente, type ClienteObraOpcao } from "@/lib/clientes";
 
 export const Route = createFileRoute("/_authenticated/solicitacoes/nova")({
   head: () => ({
@@ -100,6 +102,23 @@ function NovaSolicitacao() {
   });
 
   const recursos = useRecursosBanco();
+  const { data: clientesObras = [] } = useQuery({
+    queryKey: ["clientes"],
+    retry: false,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("clientes_obras").select("id, nome, empreendimento, unidade, endereco").order("nome");
+      if (error) return [] as ClienteObraOpcao[];
+      return (data ?? []) as ClienteObraOpcao[];
+    },
+  });
+  const [clienteObraId, setClienteObraId] = useState<string | null>(null);
+  const escolherCliente = (c: ClienteObraOpcao) => {
+    setClienteObraId(c.id);
+    form.setValue("cliente", c.nome, { shouldValidate: true });
+    form.setValue("empreendimento", c.empreendimento ?? "");
+    form.setValue("unidade", c.unidade ?? "");
+    form.setValue("endereco_obra", c.endereco ?? "");
+  };
   const exigePrazoCompra = useRef(recursos.prazoCompra);
   exigePrazoCompra.current = recursos.prazoCompra;
   const form = useForm<FormValues>({
@@ -117,7 +136,14 @@ function NovaSolicitacao() {
     const chaves = Object.keys(obra) as (keyof typeof obra)[];
     const conflito = chaves.some((k) => obra[k] && cur[k]?.trim() && cur[k]!.trim() !== obra[k]);
     const substituir = !conflito || window.confirm("Substituir dados da obra pelos do projeto?");
-    for (const k of chaves) if (obra[k] && (substituir || !cur[k]?.trim())) form.setValue(k, obra[k]);
+    const sugerido = sugerirCliente(clientesObras, { cliente: obra.cliente, empreendimento: obra.empreendimento, unidade: obra.unidade });
+    if (sugerido && (!clienteObraId || substituir)) {
+      escolherCliente(sugerido);
+      toast.info(`Cliente sugerido pelo projeto: ${rotuloCliente(sugerido)}`);
+    } else {
+      for (const k of chaves) if (obra[k] && (substituir || !cur[k]?.trim())) form.setValue(k, obra[k]);
+      if (substituir && obra.cliente) setClienteObraId(null);
+    }
     if (!cur.titulo?.trim()) {
       const emp = form.getValues("empreendimento") || "";
       const un = form.getValues("unidade") || "";
@@ -168,6 +194,20 @@ function NovaSolicitacao() {
   const onSubmit = async (v: FormValues) => {
     setSaving(true);
     try {
+      let vinculo = clienteObraId;
+      if (recursos.clienteObra && !vinculo) {
+        const igual = clientesObras.find((c) => normalizar(c.nome) === normalizar(v.cliente)
+          && normalizar(c.empreendimento) === normalizar(v.empreendimento) && normalizar(c.unidade) === normalizar(v.unidade));
+        if (igual) vinculo = igual.id;
+        else {
+          const { data: novo, error: ne } = await supabase.from("clientes_obras").insert({
+            nome: v.cliente.trim(), empreendimento: v.empreendimento?.trim() || null,
+            unidade: v.unidade?.trim() || null, endereco: v.endereco_obra?.trim() || null,
+          } as never).select("id").single();
+          if (ne) console.warn("Cliente não cadastrado:", ne.message);
+          else { vinculo = (novo as { id: string }).id; qc.invalidateQueries({ queryKey: ["clientes"] }); }
+        }
+      }
       const payload: Record<string, unknown> = {
         cliente: v.cliente,
         empreendimento: v.empreendimento || null,
@@ -181,6 +221,7 @@ function NovaSolicitacao() {
         area_m2: extra.area_m2,
         prazo_obra: extra.prazo_obra,
         extracao_id: extra.extracao_id,
+        ...(recursos.clienteObra && vinculo ? { cliente_obra_id: vinculo } : {}),
       };
       // Se o banco ainda não tiver alguma coluna nova, remove e tenta de novo.
       let res = await supabase.from("solicitacoes").insert(payload as never).select("id, codigo").single();
@@ -250,6 +291,14 @@ function NovaSolicitacao() {
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-1.5">
             <Label>Cliente *</Label>
+            {recursos.clienteObra ? (
+              <>
+                <ClientePicker lista={clientesObras} valorId={clienteObraId} textoLivre={clienteObraId ? "" : form.watch("cliente") ?? ""}
+                  invalido={!!e.cliente} onEscolher={escolherCliente}
+                  onNovo={(nome) => { setClienteObraId(null); form.setValue("cliente", nome, { shouldValidate: true }); }} />
+                {!clienteObraId && form.watch("cliente") && <p className="text-xs text-muted-foreground">Será cadastrado como cliente novo ao enviar.</p>}
+              </>
+            ) : (
             <Input list="dl-clientes" {...form.register("cliente")}
               onBlur={(ev) => {
                 const hit = sugestoes?.enderecos.find((r) => r.cliente === ev.target.value && r.endereco_obra);
@@ -257,6 +306,7 @@ function NovaSolicitacao() {
                 if (hit?.empreendimento && !form.getValues("empreendimento")) form.setValue("empreendimento", hit.empreendimento);
               }}
             />
+            )}
             <Err m={e.cliente?.message} />
           </div>
           <div className="space-y-1.5">

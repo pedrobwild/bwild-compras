@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, useRole } from "@/hooks/useAuth";
 import { uploadAnexo } from "@/lib/upload";
+import { useRecursosBanco } from "@/hooks/useRecursos";
 import { useLeituraProjeto, type ValidacaoAplicada } from "@/components/ValidacaoProjeto";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,6 +63,7 @@ const nomeObra = (c: ClienteObra) => [c.empreendimento, c.unidade].filter(Boolea
 
 function ClientesPage() {
   const { isCompras } = useRole();
+  const recursos = useRecursosBanco();
   const { user } = useAuth();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -81,7 +83,8 @@ function ClientesPage() {
     if (!v.itens.length) { toast.error("Nenhum item para criar."); return; }
     // Um card (solicitação) por item do projeto.
     const base = {
-      cliente: v.obra.cliente.trim() || c.nome,
+      cliente: recursos.clienteObra ? c.nome : v.obra.cliente.trim() || c.nome,
+      ...(recursos.clienteObra ? { cliente_obra_id: c.id } : {}),
       empreendimento: emp || null,
       unidade: un || null,
       endereco_obra: v.obra.endereco.trim() || c.endereco || null,
