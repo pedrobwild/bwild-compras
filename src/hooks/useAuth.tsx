@@ -30,6 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const uid = session?.user.id;
+  const acessoRegistrado = useRef<string | null>(null);
   useEffect(() => {
     if (!uid) {
       setRoles([]);
@@ -41,6 +42,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Ignora a resposta de um usuário anterior (sair e entrar com outra conta rapidamente).
     let ativo = true;
     setLoading(true);
+    // Registra o acesso (1x por sessão por usuário). Ignora erro se o script ainda não foi rodado.
+    if (acessoRegistrado.current !== uid) {
+      acessoRegistrado.current = uid;
+      supabase.rpc("registrar_acesso").then(({ error }) => {
+        if (error) console.warn("registrar_acesso:", error.message);
+      });
+    }
     Promise.all([
       supabase.from("user_roles").select("role").eq("user_id", uid),
       supabase.from("profiles").select("nome").eq("id", uid).maybeSingle(),
