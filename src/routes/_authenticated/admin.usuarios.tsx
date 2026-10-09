@@ -50,14 +50,14 @@ function Usuarios() {
     enabled: isAdmin,
     queryFn: async () => {
       const [p, r] = await Promise.all([
-        supabase.from("profiles").select("id, nome, email, created_at").order("nome").limit(1000),
+        supabase.from("profiles").select("id, nome, email, created_at, acessos, ultimo_acesso").order("nome").limit(1000),
         supabase.from("user_roles").select("user_id, role").limit(1000),
       ]);
       if (p.error) throw p.error;
       if (r.error) throw r.error;
       const roles: Record<string, string[]> = {};
       for (const x of (r.data ?? []) as { user_id: string; role: string }[]) (roles[x.user_id] ??= []).push(x.role);
-      return ((p.data ?? []) as { id: string; nome: string | null; email: string | null; created_at: string }[]).map((u) => ({ ...u, roles: roles[u.id] ?? [] }));
+      return ((p.data ?? []) as { id: string; nome: string | null; email: string | null; created_at: string; acessos: number | null; ultimo_acesso: string | null }[]).map((u) => ({ ...u, roles: roles[u.id] ?? [] }));
     },
   });
 
@@ -89,6 +89,13 @@ function Usuarios() {
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">{u.nome || "—"}</p>
                 <p className="truncate text-xs text-muted-foreground">{u.email} · desde {fmtDate(u.created_at)}</p>
+                {(u.acessos ?? 0) > 0 ? (
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                    Acessou {u.acessos} {u.acessos === 1 ? "vez" : "vezes"} · último acesso {fmtDate(u.ultimo_acesso, "dd/MM/yyyy 'às' HH:mm")}
+                  </p>
+                ) : (
+                  <p className="mt-0.5 text-xs font-medium text-status-cotacao">Nunca acessou</p>
+                )}
               </div>
               {(["compras", "admin"] as Role[]).map((role) => (
                 <label key={role} className="flex items-center gap-2 text-sm">
