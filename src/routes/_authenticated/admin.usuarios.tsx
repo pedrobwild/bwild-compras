@@ -49,10 +49,12 @@ function Usuarios() {
     queryKey: ["admin-usuarios"],
     enabled: isAdmin,
     queryFn: async () => {
-      const [p, r] = await Promise.all([
-        supabase.from("profiles").select("id, nome, email, created_at, acessos, ultimo_acesso").order("nome").limit(1000),
-        supabase.from("user_roles").select("user_id, role").limit(1000),
-      ]);
+      // Se o script acessos_usuarios.sql ainda não foi rodado, busca sem os campos de acesso.
+      let p = await supabase.from("profiles").select("id, nome, email, created_at, acessos, ultimo_acesso").order("nome").limit(1000);
+      if (p.error && /acessos|ultimo_acesso/i.test(p.error.message)) {
+        p = await supabase.from("profiles").select("id, nome, email, created_at").order("nome").limit(1000);
+      }
+      const r = await supabase.from("user_roles").select("user_id, role").limit(1000);
       if (p.error) throw p.error;
       if (r.error) throw r.error;
       const roles: Record<string, string[]> = {};
