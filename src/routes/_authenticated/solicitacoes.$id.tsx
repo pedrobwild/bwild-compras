@@ -23,7 +23,7 @@ import { ErrorState, EmptyState } from "@/components/States";
 import { FileDropzone, type PendingFile } from "@/components/FileDropzone";
 import { CompraDialog, RecebimentoDialog, type Compra } from "@/components/CompraDialogs";
 import { abrirArquivo, signedUrl, uploadAnexo } from "@/lib/upload";
-import { AMBIENTES, CATEGORIAS, UNIDADES, STATUS, statusDisponiveis, fmtBRL, fmtBytes, fmtDate, type Prioridade, type Status, diasAtrasoEntrega, fmtDias } from "@/lib/format";
+import { AMBIENTES, CATEGORIAS, UNIDADES, STATUS, statusDisponiveis, fmtBRL, fmtBytes, fmtDate, type Prioridade, type Status, diasAtrasoEntrega, fmtDias, textoAtraso, textoVencimento, type PainelRow } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { nomeCanal } from "@/lib/realtime";
 import { useRecursosBanco } from "@/hooks/useRecursos";
@@ -74,6 +74,19 @@ function Detalhe() {
   const recursos = useRecursosBanco();
   const [dividindo, setDividindo] = useState(false);
 
+  // Atraso calculado no banco (view painel_solicitacoes); chave "painel" para atualizar junto com o painel
+  const atrasoQ = useQuery({
+    queryKey: ["painel", "atraso", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("painel_solicitacoes")
+        .select("atrasada, dias_atraso, tipo_atraso, situacao_prazo, vence_em_dias")
+        .eq("id", id)
+        .maybeSingle();
+      if (error) return null;
+      return data as Pick<PainelRow, "atrasada" | "dias_atraso" | "tipo_atraso" | "situacao_prazo" | "vence_em_dias"> | null;
+    },
+  });
   const escolhidaQ = useQuery({
     queryKey: ["cotacoes", id, "escolhida"],
     queryFn: async () => {
@@ -280,6 +293,12 @@ function Detalhe() {
             <div className="mt-2 flex flex-wrap gap-2">
               <StatusBadge status={s.status} />
               <PrioridadeBadge prioridade={s.prioridade} />
+              {atrasoQ.data?.atrasada && (
+                <span className="inline-flex items-center rounded-md bg-destructive/12 px-2 py-0.5 text-xs font-medium text-destructive">{textoAtraso(atrasoQ.data)}</span>
+              )}
+              {atrasoQ.data && !atrasoQ.data.atrasada && textoVencimento(atrasoQ.data) && (
+                <span className="inline-flex items-center rounded-md bg-status-cotacao/15 px-2 py-0.5 text-xs font-medium text-status-cotacao">{textoVencimento(atrasoQ.data)}</span>
+              )}
             </div>
           </div>
           <div className="flex flex-wrap gap-2">

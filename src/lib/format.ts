@@ -117,11 +117,12 @@ const TIPO_ATRASO: Record<TipoAtraso, string> = { compra: "Compra", entrega: "En
 export const fmtDias = (n: number) => `${n} ${n === 1 ? "dia" : "dias"}`;
 
 /** "Compra atrasada há 5 dias" (ou só "Atrasada" se o banco ainda não tiver a contagem) */
-export function textoAtraso(r: Pick<PainelRow, "atrasada" | "dias_atraso" | "tipo_atraso">, curto = false) {
+export function textoAtraso(r: Pick<PainelRow, "atrasada" | "dias_atraso" | "tipo_atraso">, curto: boolean | "mini" = false) {
   if (!r.atrasada) return null;
   const n = r.dias_atraso ?? 0;
   const tipo = r.tipo_atraso ? TIPO_ATRASO[r.tipo_atraso] : null;
   if (!n) return tipo ? `${tipo} atrasada` : "Atrasada";
+  if (curto === "mini") return `${r.tipo_atraso ? { compra: "Compra", entrega: "Entrega", chegada: "Chegada" }[r.tipo_atraso] : "Atraso"} · ${n}d`;
   if (curto) return `${tipo ? `${tipo} atrasada` : "Atrasada"} · ${n}d`;
   return `${tipo ? `${tipo} atrasada` : "Atrasada"} há ${fmtDias(n)}`;
 }

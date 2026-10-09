@@ -207,12 +207,12 @@ function Painel() {
               <TableBody>
                 {filtered.map((r) => (
                   <TableRow key={r.id} onClick={() => go(r.id)} className={cn("cursor-pointer", r.atrasada && "bg-destructive/5 hover:bg-destructive/10")}>
-                    <TableCell className="font-medium">
+                    <TableCell className="whitespace-nowrap font-medium">
                       <span className="flex items-center gap-1">
                         {r.atrasada && <AlertTriangle className="h-3.5 w-3.5 text-destructive" aria-label={textoAtraso(r) ?? "Atrasada"} />}
                         {r.codigo}
                       </span>
-                      {r.atrasada && <span className="block text-[11px] font-medium text-destructive">{textoAtraso(r, true)}</span>}
+                      {r.atrasada && <span className="block text-[11px] font-medium text-destructive" title={textoAtraso(r) ?? undefined}>{textoAtraso(r, "mini")}</span>}
                       {!r.atrasada && textoVencimento(r) && <span className="block text-[11px] font-medium text-status-cotacao">{textoVencimento(r)}</span>}
                     </TableCell>
                     <TableCell>
