@@ -58,7 +58,8 @@ const STEPS: { key: Status; label: string }[] = [
   { key: "em_cotacao", label: "Em cotação" },
   { key: "aguardando_aprovacao", label: "Aprovação" },
   { key: "aprovada", label: "Aprovado" },
-  { key: "comprada", label: "Comprada" },
+  { key: "solicitacao_pagamento", label: "Solicitação de pagamento" },
+  { key: "comprada", label: "Comprado" },
   { key: "entregue", label: "Entregue" },
 ];
 /** Posição na barra de progresso; "entregue parcial" fica entre Comprada e Entregue. */
@@ -163,7 +164,7 @@ function Detalhe() {
     if (k === s.status) return true;
     if (isAdmin) return true;
     if (k === "aprovada" || s.status === "aguardando_aprovacao") return false;
-    if (["comprada", "entregue_parcial", "entregue"].includes(k)) return ["aprovada", "comprada", "entregue_parcial", "entregue"].includes(s.status);
+    if (["solicitacao_pagamento", "comprada", "entregue_parcial", "entregue"].includes(k)) return ["aprovada", "solicitacao_pagamento", "comprada", "entregue_parcial", "entregue"].includes(s.status);
     return true;
   };
   const total = d.compras.reduce((a, c) => a + Number(c.valor_total ?? 0), 0);
