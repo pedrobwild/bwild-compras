@@ -37,6 +37,7 @@ const COLS: { key: Status; dot: string }[] = [
   { key: "em_cotacao", dot: "bg-status-cotacao" },
   { key: "aguardando_aprovacao", dot: "bg-status-aprovacao" },
   { key: "aprovada", dot: "bg-status-aprovada" },
+  { key: "solicitacao_pagamento", dot: "bg-status-pagamento" },
   { key: "comprada", dot: "bg-status-comprada" },
   { key: "entregue_parcial", dot: "bg-status-parcial" },
   { key: "entregue", dot: "bg-status-entregue" },
