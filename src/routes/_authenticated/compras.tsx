@@ -105,7 +105,9 @@ function Fila() {
       return void toast.error("Somente o admin pode aprovar ou tirar uma solicitação da etapa Aprovação.");
     if (status === "aprovada" && row.status !== "aguardando_aprovacao")
       return void toast.error("Só é possível aprovar uma solicitação que está em Aprovação.");
-    if (["comprada", "entregue_parcial", "entregue"].includes(status) && row.status !== "aprovada" && !["comprada", "entregue_parcial", "entregue"].includes(row.status))
+    if (status === "solicitacao_pagamento" && row.status !== "aprovada" && row.status !== "solicitacao_pagamento")
+      return void toast.error("A solicitação de pagamento só pode ser pedida depois de Aprovado.");
+    if (["comprada", "entregue_parcial", "entregue"].includes(status) && !["aprovada", "solicitacao_pagamento", "comprada", "entregue_parcial", "entregue"].includes(row.status))
       return void toast.error("A compra só pode ser efetivada depois de Aprovado. Abra a solicitação e use \"Efetivar pedido\".");
     const { error: err } = await supabase.from("solicitacoes").update({ status }).eq("id", id);
     if (err) {
