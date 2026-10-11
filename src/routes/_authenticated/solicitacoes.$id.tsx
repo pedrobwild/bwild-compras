@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CotacoesTab } from "@/components/CotacoesTab";
+import { RevisaoIA } from "@/components/RevisaoIA";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -428,7 +429,12 @@ function Detalhe() {
           <TabsTrigger value="timeline">Histórico</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="itens"><ItensTab itens={d.itens} editable={isOwnerEditable} solicitacaoId={id} onChange={refresh} /></TabsContent>
+        <TabsContent value="itens">
+          {(isCompras || isAdmin) && d.itens.length > 0 && (
+            <RevisaoIA titulo={s.titulo ?? ""} descricao={s.descricao ?? ""} itens={d.itens} />
+          )}
+          <ItensTab itens={d.itens} editable={isOwnerEditable} solicitacaoId={id} onChange={refresh} />
+        </TabsContent>
         <TabsContent value="anexos"><AnexosTab anexos={d.anexos} solicitacaoId={id} onChange={refresh} podeImportar={(isCompras || isOwnerEditable) && s.status !== "cancelada"} /></TabsContent>
         <TabsContent value="compras">
           {d.compras.length === 0 ? (
