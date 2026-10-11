@@ -56,7 +56,7 @@ Regras: escreva em português do Brasil, frases curtas e objetivas. Só liste it
 export const revisarSolicitacaoIA = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => InputSchema.parse(d))
   .handler(async ({ data }): Promise<{ ok: true; revisao: RevisaoIA } | { ok: false; erro: string }> => {
-    const key = process.env.LOVABLE_API_KEY;
+    const key = process.env["LOVABLE_API_KEY"];
     if (!key) return { ok: false, erro: "Chave da IA não configurada." };
 
     const texto = [
