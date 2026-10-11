@@ -69,3 +69,11 @@ Calculado a cada consulta, no fuso de São Paulo (`public.hoje_sp()`); não depe
 - `atrasada` = `dias_atraso > 0` (antes considerava só a data necessária).
 - `situacao_prazo`: `atrasada`, `vence_hoje`, `vence_em_breve` (1 a 3 dias), `no_prazo`, `sem_prazo`, `concluida`; `vence_em_dias` = dias até o prazo aberto mais próximo.
 - Por compra: `GET /rest/v1/compras?select=*,dias_atraso_entrega` (função `dias_atraso_entrega(compras)`; entregue com atraso = entrega real − previsão).
+
+## Etapa "Solicitação de pagamento" (migrações 20261011085900 e 20261011090000)
+
+- Novo valor `solicitacao_pagamento` no enum `status_solicitacao`, entre `aprovada` e `comprada`.
+- `label_status`: "Solicitação de pagamento"; `comprada` passa a aparecer como "Comprado" no histórico.
+- `guard_aprovacao`: voltar de Solicitação de pagamento para Aprovado não conta como nova aprovação.
+- `painel_solicitacoes`: Solicitação de pagamento conta como "antes da compra" no atraso de compra.
+- Registrar uma compra nessa etapa leva a solicitação para Comprado (regra de `sync_status_compras`, sem mudança).
