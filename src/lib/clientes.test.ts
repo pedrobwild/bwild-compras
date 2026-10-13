@@ -18,3 +18,21 @@ describe("clientes", () => {
     expect(sugerirCliente(lista, { cliente: "Carlos Souza" })).toBeNull();
   });
 });
+
+import { bateBusca, mesclarClientes } from "./clientes";
+
+describe("lista de clientes", () => {
+  it("busca por palavras em qualquer ordem", () => {
+    expect(bateBusca("Eric Fernandes — Ed. Aurora 101", "aurora eric")).toBe(true);
+    expect(bateBusca("Eric Fernandes — Ed. Aurora 101", "aurora carlos")).toBe(false);
+  });
+  it("cliente que só existe em solicitação entra na lista, sem duplicar o cadastro", () => {
+    const r = mesclarClientes(lista, [
+      { cliente: "ERIC fernandes", empreendimento: "ed. aurora", unidade: "101", endereco_obra: null },
+      { cliente: "Marta Dias", empreendimento: "Ed. Lua", unidade: "5", endereco_obra: "Rua A" },
+      { cliente: "Marta Dias", empreendimento: "Ed. Lua", unidade: "5", endereco_obra: "Rua A" },
+    ]);
+    expect(r).toHaveLength(4);
+    expect(r.find((c) => c.nome === "Marta Dias")?.semCadastro).toBe(true);
+  });
+});
