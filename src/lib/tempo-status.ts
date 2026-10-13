@@ -61,7 +61,8 @@ export function calcularTempoPorStatus(eventos: EventoStatus[], solicitacoes: So
     for (let i = 0; i < linha.length; i++) {
       const fim = i + 1 < linha.length ? linha[i + 1].em : agora;
       const dias = Math.max(0, (fim - linha[i].em) / DIA);
-      const ehAtual = i === linha.length - 1 && linha[i].status === s.status;
+      // O último trecho da linha do tempo é sempre a etapa atual do card.
+      const ehAtual = i === linha.length - 1;
       const mapa = ehAtual ? atual : historico;
       const arr = mapa.get(linha[i].status) ?? [];
       arr.push(dias);
