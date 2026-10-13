@@ -19,7 +19,7 @@ import { Switch } from "@/components/ui/switch";
 import { useLeituraProjeto, limparRascunho, type ValidacaoAplicada } from "@/components/ValidacaoProjeto";
 import { useRecursosBanco } from "@/hooks/useRecursos";
 import { ClientePicker } from "@/components/ClientePicker";
-import { normalizar, rotuloCliente, sugerirCliente, type ClienteObraOpcao } from "@/lib/clientes";
+import { mesclarClientes, normalizar, rotuloCliente, sugerirCliente, type ClienteDeSolicitacao, type ClienteObraOpcao } from "@/lib/clientes";
 
 export const Route = createFileRoute("/_authenticated/solicitacoes/nova")({
   head: () => ({
@@ -109,9 +109,26 @@ function NovaSolicitacao() {
     refetchOnMount: "always",
     retry: (n, e: any) => e?.code !== "42P01" && n < 2,
     queryFn: async () => {
-      const { data, error } = await supabase.from("clientes_obras").select("id, nome, empreendimento, unidade, endereco").order("nome").limit(1000);
-      if (error) { if ((error as any).code === "42P01") return [] as ClienteObraOpcao[]; throw error; }
-      return (data ?? []) as ClienteObraOpcao[];
+      // Paginado (o banco devolve no máximo 1000 linhas por vez) e somado aos clientes que só
+      // existem em solicitações — antes esses sumiam da lista.
+      const PAG = 1000;
+      const cadastro: ClienteObraOpcao[] = [];
+      for (let de = 0; ; de += PAG) {
+        const { data, error } = await supabase.from("clientes_obras").select("id, nome, empreendimento, unidade, endereco")
+          .order("nome").order("id").range(de, de + PAG - 1);
+        if (error) { if ((error as any).code === "42P01") return [] as ClienteObraOpcao[]; throw error; }
+        cadastro.push(...((data ?? []) as ClienteObraOpcao[]));
+        if (!data || data.length < PAG) break;
+      }
+      const sols: ClienteDeSolicitacao[] = [];
+      for (let de = 0; ; de += PAG) {
+        const { data, error } = await supabase.from("solicitacoes").select("cliente, empreendimento, unidade, endereco_obra")
+          .order("created_at", { ascending: false }).order("id").range(de, de + PAG - 1);
+        if (error) break; // sem acesso às solicitações: mostra só o cadastro
+        sols.push(...((data ?? []) as ClienteDeSolicitacao[]));
+        if (!data || data.length < PAG) break;
+      }
+      return mesclarClientes(cadastro, sols);
     },
   });
   const [clienteObraId, setClienteObraId] = useState<string | null>(null);
@@ -197,9 +214,9 @@ function NovaSolicitacao() {
   const onSubmit = async (v: FormValues) => {
     setSaving(true);
     try {
-      let vinculo = clienteObraId;
+      let vinculo = clienteObraId?.startsWith("sol:") ? null : clienteObraId;
       if (recursos.clienteObra && !vinculo) {
-        const igual = clientesObras.find((c) => normalizar(c.nome) === normalizar(v.cliente)
+        const igual = clientesObras.find((c) => !c.semCadastro && normalizar(c.nome) === normalizar(v.cliente)
           && normalizar(c.empreendimento) === normalizar(v.empreendimento) && normalizar(c.unidade) === normalizar(v.unidade));
         if (igual) vinculo = igual.id;
         else {
@@ -207,7 +224,7 @@ function NovaSolicitacao() {
             nome: v.cliente.trim(), empreendimento: v.empreendimento?.trim() || null,
             unidade: v.unidade?.trim() || null, endereco: v.endereco_obra?.trim() || null,
           } as never).select("id").single();
-          if (ne) console.warn("Cliente não cadastrado:", ne.message);
+          if (ne) toast.warning("A solicitação será enviada, mas o cliente não entrou no cadastro: " + ne.message);
           else { vinculo = (novo as { id: string }).id; qc.invalidateQueries({ queryKey: ["clientes"] }); }
         }
       }
@@ -299,7 +316,7 @@ function NovaSolicitacao() {
                 <ClientePicker lista={clientesObras} valorId={clienteObraId} textoLivre={clienteObraId ? "" : form.watch("cliente") ?? ""}
                   invalido={!!e.cliente} onEscolher={escolherCliente} onAbrir={() => recarregarClientes()}
                   onNovo={(nome) => { setClienteObraId(null); form.setValue("cliente", nome, { shouldValidate: true }); }} />
-                {!clienteObraId && form.watch("cliente") && <p className="text-xs text-muted-foreground">Será cadastrado como cliente novo ao enviar.</p>}
+                {(!clienteObraId || clienteObraId.startsWith("sol:")) && form.watch("cliente") && <p className="text-xs text-muted-foreground">Será cadastrado como cliente novo ao enviar.</p>}
               </>
             ) : (
             <Input list="dl-clientes" {...form.register("cliente")}
