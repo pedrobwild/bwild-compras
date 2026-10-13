@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizar, sugerirCliente } from "./clientes";
+import { bateBusca, mesclarClientes, normalizar, sugerirCliente } from "./clientes";
 
 const lista = [
   { id: "1", nome: "Eric Fernandes", empreendimento: "Ed. Aurora", unidade: "101", endereco: null },
@@ -18,8 +18,6 @@ describe("clientes", () => {
     expect(sugerirCliente(lista, { cliente: "Carlos Souza" })).toBeNull();
   });
 });
-
-import { bateBusca, mesclarClientes } from "./clientes";
 
 describe("lista de clientes", () => {
   it("busca por palavras em qualquer ordem", () => {
