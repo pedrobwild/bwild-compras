@@ -1,7 +1,6 @@
 // Edge Function: extrair-projeto-executivo
 // Recebe o texto do projeto executivo (extraído no navegador, página a página),
 // identifica dados da obra e itens de compra com IA e devolve JSON para validação.
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const CORS = {
