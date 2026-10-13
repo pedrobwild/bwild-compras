@@ -215,7 +215,9 @@ function NovaSolicitacao() {
     setSaving(true);
     try {
       let vinculo = clienteObraId?.startsWith("sol:") ? null : clienteObraId;
-      if (recursos.clienteObra && !vinculo) {
+      // Cliente novo entra no cadastro mesmo sem a coluna de vínculo (vincular_clientes.sql);
+      // antes isso dependia da coluna e o cliente nunca era cadastrado.
+      if (!vinculo) {
         const igual = clientesObras.find((c) => !c.semCadastro && normalizar(c.nome) === normalizar(v.cliente)
           && normalizar(c.empreendimento) === normalizar(v.empreendimento) && normalizar(c.unidade) === normalizar(v.unidade));
         if (igual) vinculo = igual.id;
@@ -224,8 +226,9 @@ function NovaSolicitacao() {
             nome: v.cliente.trim(), empreendimento: v.empreendimento?.trim() || null,
             unidade: v.unidade?.trim() || null, endereco: v.endereco_obra?.trim() || null,
           } as never).select("id").single();
-          if (ne) toast.warning("A solicitação será enviada, mas o cliente não entrou no cadastro: " + ne.message);
-          else { vinculo = (novo as { id: string }).id; qc.invalidateQueries({ queryKey: ["clientes"] }); }
+          const semTabela = ne && (ne.code === "42P01" || ne.code === "PGRST205");
+          if (ne && !semTabela) toast.warning("A solicitação será enviada, mas o cliente não entrou no cadastro: " + ne.message);
+          else if (novo) { vinculo = (novo as { id: string }).id; qc.invalidateQueries({ queryKey: ["clientes"] }); }
         }
       }
       const payload: Record<string, unknown> = {
@@ -311,22 +314,12 @@ function NovaSolicitacao() {
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-1.5">
             <Label>Cliente *</Label>
-            {recursos.clienteObra ? (
-              <>
-                <ClientePicker lista={clientesObras} valorId={clienteObraId} textoLivre={clienteObraId ? "" : form.watch("cliente") ?? ""}
-                  invalido={!!e.cliente} onEscolher={escolherCliente} onAbrir={() => recarregarClientes()}
-                  onNovo={(nome) => { setClienteObraId(null); form.setValue("cliente", nome, { shouldValidate: true }); }} />
-                {(!clienteObraId || clienteObraId.startsWith("sol:")) && form.watch("cliente") && <p className="text-xs text-muted-foreground">Será cadastrado como cliente novo ao enviar.</p>}
-              </>
-            ) : (
-            <Input list="dl-clientes" {...form.register("cliente")}
-              onBlur={(ev) => {
-                const hit = sugestoes?.enderecos.find((r) => r.cliente === ev.target.value && r.endereco_obra);
-                if (hit && !form.getValues("endereco_obra")) form.setValue("endereco_obra", hit.endereco_obra ?? "");
-                if (hit?.empreendimento && !form.getValues("empreendimento")) form.setValue("empreendimento", hit.empreendimento);
-              }}
-            />
-            )}
+            {/* Sempre a lista do cadastro: antes, sem a coluna cliente_obra_id no banco, a tela caía
+                num campo de texto que só sugeria nomes de solicitações antigas — o cadastro sumia. */}
+            <ClientePicker lista={clientesObras} valorId={clienteObraId} textoLivre={clienteObraId ? "" : form.watch("cliente") ?? ""}
+              invalido={!!e.cliente} onEscolher={escolherCliente} onAbrir={() => recarregarClientes()}
+              onNovo={(nome) => { setClienteObraId(null); form.setValue("cliente", nome, { shouldValidate: true }); }} />
+            {(!clienteObraId || clienteObraId.startsWith("sol:")) && form.watch("cliente") && <p className="text-xs text-muted-foreground">Será cadastrado como cliente novo ao enviar.</p>}
             <Err m={e.cliente?.message} />
           </div>
           <div className="space-y-1.5">
