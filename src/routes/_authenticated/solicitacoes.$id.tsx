@@ -219,11 +219,11 @@ function Detalhe() {
     setDividindo(true);
     const criadas: { id: string; codigo: string }[] = [];
     try {
-      // Os cards novos mantêm a etapa, o responsável e os dados da obra do card original.
+      // Os cards novos mantêm o solicitante, a etapa, o responsável e os dados da obra do card original.
       const base = {
         cliente: s.cliente, empreendimento: s.empreendimento, unidade: s.unidade, endereco_obra: s.endereco_obra,
         descricao: s.descricao, prioridade: s.prioridade, data_necessaria: s.data_necessaria,
-        status: s.status, responsavel_compras_id: s.responsavel_compras_id,
+        status: s.status, solicitante_id: s.solicitante_id, responsavel_compras_id: s.responsavel_compras_id,
         area_m2: s.area_m2 ?? null, prazo_obra: s.prazo_obra ?? null, extracao_id: s.extracao_id ?? null,
         ...(recursos.prazoCompra ? { prazo_compra: s.prazo_compra ?? null } : {}),
       };
