@@ -67,12 +67,6 @@ export function calcularTempoPorStatus(eventos: EventoStatus[], solicitacoes: So
       arr.push(dias);
       mapa.set(linha[i].status, arr);
     }
-    // Card sem nenhum evento: o tempo todo no status atual.
-    if (evs.length === 0) {
-      const arr = atual.get(s.status) ?? [];
-      arr.push(Math.max(0, (agora - criado) / DIA));
-      atual.set(s.status, arr);
-    }
   }
 
   const media = (a: number[]) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : null);
