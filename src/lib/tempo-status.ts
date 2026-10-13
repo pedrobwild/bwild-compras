@@ -58,6 +58,8 @@ export function calcularTempoPorStatus(eventos: EventoStatus[], solicitacoes: So
     const evs = (porSolic.get(s.id) ?? []).sort((a, b) => a.em - b.em);
     // Linha do tempo: criação (status "nova") + cada mudança de status.
     const linha: { status: Status; em: number }[] = [{ status: "nova", em: criado }, ...evs];
+    // O último trecho é a etapa atual do card (cobre cards antigos sem histórico de mudanças).
+    linha[linha.length - 1].status = s.status;
     for (let i = 0; i < linha.length; i++) {
       const fim = i + 1 < linha.length ? linha[i + 1].em : agora;
       const dias = Math.max(0, (fim - linha[i].em) / DIA);
