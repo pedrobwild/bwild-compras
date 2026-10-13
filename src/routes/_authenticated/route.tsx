@@ -1,7 +1,7 @@
 import { createFileRoute, Link, Outlet, redirect, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { LayoutDashboard, PlusCircle, KanbanSquare, Users, LogOut, Building2, Wallet, FileText, Truck } from "lucide-react";
+import { LayoutDashboard, PlusCircle, KanbanSquare, Users, LogOut, Building2, Wallet, FileText, Truck, Timer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, useRole } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
