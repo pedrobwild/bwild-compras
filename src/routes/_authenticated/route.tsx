@@ -1,7 +1,7 @@
 import { createFileRoute, Link, Outlet, redirect, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { LayoutDashboard, PlusCircle, KanbanSquare, Users, LogOut, Building2, Wallet, FileText, Truck } from "lucide-react";
+import { LayoutDashboard, PlusCircle, KanbanSquare, Users, LogOut, Building2, Wallet, FileText, Truck, Timer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, useRole } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
@@ -38,6 +38,7 @@ function AppLayout() {
     { to: "/fornecedores", label: "Fornec.", long: "Fornecedores", icon: Truck, show: isCompras },
     { to: "/clientes", label: "Clientes", long: "Clientes e obras", icon: Building2, show: true },
     { to: "/obras", label: "Obras", long: "Custos por obra", icon: Wallet, show: isCompras },
+    { to: "/tempo", label: "Tempos", long: "Tempo por etapa", icon: Timer, show: isCompras },
     { to: "/admin/usuarios", label: "Usuários", icon: Users, show: isAdmin },
   ].filter((i) => i.show) as { to: "/painel"; label: string; long?: string; icon: typeof Users }[];
 

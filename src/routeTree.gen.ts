@@ -19,6 +19,7 @@ import { Route as AuthenticatedCotacoesRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedFornecedoresRouteImport } from './routes/_authenticated/fornecedores'
 import { Route as AuthenticatedObrasRouteImport } from './routes/_authenticated/obras'
 import { Route as AuthenticatedPainelRouteImport } from './routes/_authenticated/painel'
+import { Route as AuthenticatedTempoRouteImport } from './routes/_authenticated/tempo'
 import { Route as AuthenticatedAdminUsuariosRouteImport } from './routes/_authenticated/admin.usuarios'
 import { Route as AuthenticatedSolicitacoesIdRouteImport } from './routes/_authenticated/solicitacoes.$id'
 import { Route as AuthenticatedSolicitacoesNovaRouteImport } from './routes/_authenticated/solicitacoes.nova'
@@ -73,6 +74,11 @@ const AuthenticatedPainelRoute = AuthenticatedPainelRouteImport.update({
   path: '/painel',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedTempoRoute = AuthenticatedTempoRouteImport.update({
+  id: '/tempo',
+  path: '/tempo',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedAdminUsuariosRoute =
   AuthenticatedAdminUsuariosRouteImport.update({
     id: '/admin/usuarios',
@@ -102,6 +108,7 @@ export interface FileRoutesByFullPath {
   '/fornecedores': typeof AuthenticatedFornecedoresRoute
   '/obras': typeof AuthenticatedObrasRoute
   '/painel': typeof AuthenticatedPainelRoute
+  '/tempo': typeof AuthenticatedTempoRoute
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/solicitacoes/$id': typeof AuthenticatedSolicitacoesIdRoute
   '/solicitacoes/nova': typeof AuthenticatedSolicitacoesNovaRoute
@@ -116,6 +123,7 @@ export interface FileRoutesByTo {
   '/fornecedores': typeof AuthenticatedFornecedoresRoute
   '/obras': typeof AuthenticatedObrasRoute
   '/painel': typeof AuthenticatedPainelRoute
+  '/tempo': typeof AuthenticatedTempoRoute
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/solicitacoes/$id': typeof AuthenticatedSolicitacoesIdRoute
   '/solicitacoes/nova': typeof AuthenticatedSolicitacoesNovaRoute
@@ -132,6 +140,7 @@ export interface FileRoutesById {
   '/_authenticated/fornecedores': typeof AuthenticatedFornecedoresRoute
   '/_authenticated/obras': typeof AuthenticatedObrasRoute
   '/_authenticated/painel': typeof AuthenticatedPainelRoute
+  '/_authenticated/tempo': typeof AuthenticatedTempoRoute
   '/_authenticated/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/_authenticated/solicitacoes/$id': typeof AuthenticatedSolicitacoesIdRoute
   '/_authenticated/solicitacoes/nova': typeof AuthenticatedSolicitacoesNovaRoute
@@ -148,6 +157,7 @@ export interface FileRouteTypes {
     | '/fornecedores'
     | '/obras'
     | '/painel'
+    | '/tempo'
     | '/admin/usuarios'
     | '/solicitacoes/$id'
     | '/solicitacoes/nova'
@@ -162,6 +172,7 @@ export interface FileRouteTypes {
     | '/fornecedores'
     | '/obras'
     | '/painel'
+    | '/tempo'
     | '/admin/usuarios'
     | '/solicitacoes/$id'
     | '/solicitacoes/nova'
@@ -177,6 +188,7 @@ export interface FileRouteTypes {
     | '/_authenticated/fornecedores'
     | '/_authenticated/obras'
     | '/_authenticated/painel'
+    | '/_authenticated/tempo'
     | '/_authenticated/admin/usuarios'
     | '/_authenticated/solicitacoes/$id'
     | '/_authenticated/solicitacoes/nova'
@@ -261,6 +273,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPainelRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/tempo': {
+      id: '/_authenticated/tempo'
+      path: '/tempo'
+      fullPath: '/tempo'
+      preLoaderRoute: typeof AuthenticatedTempoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/admin/usuarios': {
       id: '/_authenticated/admin/usuarios'
       path: '/admin/usuarios'
@@ -292,6 +311,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedFornecedoresRoute: typeof AuthenticatedFornecedoresRoute
   AuthenticatedObrasRoute: typeof AuthenticatedObrasRoute
   AuthenticatedPainelRoute: typeof AuthenticatedPainelRoute
+  AuthenticatedTempoRoute: typeof AuthenticatedTempoRoute
   AuthenticatedAdminUsuariosRoute: typeof AuthenticatedAdminUsuariosRoute
   AuthenticatedSolicitacoesIdRoute: typeof AuthenticatedSolicitacoesIdRoute
   AuthenticatedSolicitacoesNovaRoute: typeof AuthenticatedSolicitacoesNovaRoute
@@ -304,6 +324,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedFornecedoresRoute: AuthenticatedFornecedoresRoute,
   AuthenticatedObrasRoute: AuthenticatedObrasRoute,
   AuthenticatedPainelRoute: AuthenticatedPainelRoute,
+  AuthenticatedTempoRoute: AuthenticatedTempoRoute,
   AuthenticatedAdminUsuariosRoute: AuthenticatedAdminUsuariosRoute,
   AuthenticatedSolicitacoesIdRoute: AuthenticatedSolicitacoesIdRoute,
   AuthenticatedSolicitacoesNovaRoute: AuthenticatedSolicitacoesNovaRoute,
