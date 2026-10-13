@@ -297,7 +297,7 @@ function NovaSolicitacao() {
             {recursos.clienteObra ? (
               <>
                 <ClientePicker lista={clientesObras} valorId={clienteObraId} textoLivre={clienteObraId ? "" : form.watch("cliente") ?? ""}
-                  invalido={!!e.cliente} onEscolher={escolherCliente}
+                  invalido={!!e.cliente} onEscolher={escolherCliente} onAbrir={() => recarregarClientes()}
                   onNovo={(nome) => { setClienteObraId(null); form.setValue("cliente", nome, { shouldValidate: true }); }} />
                 {!clienteObraId && form.watch("cliente") && <p className="text-xs text-muted-foreground">Será cadastrado como cliente novo ao enviar.</p>}
               </>
