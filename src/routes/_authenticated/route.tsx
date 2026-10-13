@@ -37,6 +37,7 @@ function AppLayout() {
     { to: "/cotacoes", label: "Cotações", icon: FileText, show: isCompras },
     { to: "/fornecedores", label: "Fornec.", long: "Fornecedores", icon: Truck, show: isCompras },
     { to: "/clientes", label: "Clientes", long: "Clientes e obras", icon: Building2, show: true },
+    { to: "/obras", label: "Obras", long: "Custos por obra", icon: Wallet, show: isCompras },
     { to: "/admin/usuarios", label: "Usuários", icon: Users, show: isAdmin },
   ].filter((i) => i.show) as { to: "/painel"; label: string; long?: string; icon: typeof Users }[];
 
