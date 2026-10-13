@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { normalizar, rotuloCliente, type ClienteObraOpcao } from "@/lib/clientes";
 
 export function ClientePicker({
-  lista, valorId, textoLivre, onEscolher, onNovo, invalido,
+  lista, valorId, textoLivre, onEscolher, onNovo, invalido, onAbrir,
 }: {
   lista: ClienteObraOpcao[];
   valorId: string | null;
@@ -15,13 +15,14 @@ export function ClientePicker({
   onEscolher: (c: ClienteObraOpcao) => void;
   onNovo: (nome: string) => void;
   invalido?: boolean;
+  onAbrir?: () => void;
 }) {
   const [aberto, setAberto] = useState(false);
   const [busca, setBusca] = useState("");
   const atual = lista.find((c) => c.id === valorId);
   const temExato = lista.some((c) => normalizar(c.nome) === normalizar(busca));
   return (
-    <Popover open={aberto} onOpenChange={setAberto}>
+    <Popover open={aberto} onOpenChange={(o) => { setAberto(o); if (o) onAbrir?.(); }}>
       <PopoverTrigger asChild>
         <Button type="button" variant="outline" role="combobox" aria-expanded={aberto} aria-invalid={invalido}
           className={cn("h-10 w-full justify-between font-normal", invalido && "border-destructive")}>

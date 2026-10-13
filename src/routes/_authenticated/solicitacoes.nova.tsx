@@ -102,12 +102,15 @@ function NovaSolicitacao() {
   });
 
   const recursos = useRecursosBanco();
-  const { data: clientesObras = [] } = useQuery({
-    queryKey: ["clientes"],
-    retry: false,
+  // Chave própria (prefixo ["clientes"] para a tela de Clientes invalidar) e sempre recarregada:
+  // antes um erro passageiro deixava a lista vazia em cache e o cliente recém-cadastrado não aparecia.
+  const { data: clientesObras = [], refetch: recarregarClientes } = useQuery({
+    queryKey: ["clientes", "opcoes"],
+    refetchOnMount: "always",
+    retry: (n, e: any) => e?.code !== "42P01" && n < 2,
     queryFn: async () => {
-      const { data, error } = await supabase.from("clientes_obras").select("id, nome, empreendimento, unidade, endereco").order("nome");
-      if (error) return [] as ClienteObraOpcao[];
+      const { data, error } = await supabase.from("clientes_obras").select("id, nome, empreendimento, unidade, endereco").order("nome").limit(1000);
+      if (error) { if ((error as any).code === "42P01") return [] as ClienteObraOpcao[]; throw error; }
       return (data ?? []) as ClienteObraOpcao[];
     },
   });
