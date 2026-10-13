@@ -335,6 +335,11 @@ function Detalhe() {
                 <ShoppingCart className="h-4 w-4" /> Efetivar pedido
               </Button>
             )}
+            {isCompras && s.status === "solicitacao_pagamento" && (
+              <Button onClick={() => { setEditCompra(null); setCompraOpen(true); }}>
+                <ShoppingCart className="h-4 w-4" /> Registrar compra
+              </Button>
+            )}
             {isCompras && ["comprada", "entregue_parcial", "entregue"].includes(s.status) && (
               <Button variant="outline" onClick={() => { setEditCompra(null); setCompraOpen(true); }}>
                 <ShoppingCart className="h-4 w-4" /> Registrar outra compra
