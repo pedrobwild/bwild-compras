@@ -136,7 +136,7 @@ describe("Detalhe da solicitação", () => {
     const qc = renderDetalhe();
     await screen.findByText("Tinta para a sala");
     await waitFor(() => expect(qc.getQueryData(["recursos-banco"])).toBeDefined());
-    expect(qc.getQueryData(["recursos-banco"])).toEqual({ prazoCompra: false, cronograma: false, anexosCotacao: false });
+    expect(qc.getQueryData(["recursos-banco"])).toEqual({ prazoCompra: false, cronograma: false, anexosCotacao: false, clienteObra: true });
     expect(screen.queryByText("Prazo para efetivar compra")).not.toBeInTheDocument();
     expect(screen.queryByText("Cronograma confirmado")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Prazo para o item chegar")).toBeInTheDocument();
