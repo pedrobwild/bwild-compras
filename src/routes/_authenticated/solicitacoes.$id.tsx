@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CotacoesTab } from "@/components/CotacoesTab";
 import { RevisaoIA } from "@/components/RevisaoIA";
+import { ResponsavelCompra } from "@/components/ResponsavelCompra";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -38,6 +39,8 @@ export const Route = createFileRoute("/_authenticated/solicitacoes/$id")({
       { name: "description", content: "Detalhes, compras e linha do tempo da solicitação." },
       { property: "og:title", content: "Solicitação — Bwild Compras" },
       { property: "og:description", content: "Detalhes, compras e linha do tempo da solicitação." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: Detalhe,
@@ -357,7 +360,10 @@ function Detalhe() {
           )}
           <PrazoInfo label="Prazo para o item chegar" value={s.data_necessaria} editavel={isCompras || isOwnerEditable} onSave={(v) => update({ data_necessaria: v }, "Prazo de chegada atualizado")} concluido={["entregue", "cancelada"].includes(s.status)} />
           <Info label="Compra realizada em" value={fmtDate(compraRealizadaEm)} />
-          <Info label="Responsável de compras" value={s.responsavel_compras_id ? d.nomes[s.responsavel_compras_id] ?? "—" : "Sem responsável"} />
+          {isCompras && s.status !== "cancelada" ? (
+            <ResponsavelCompra valor={s.responsavel_compras_id} nomeAtual={s.responsavel_compras_id ? d.nomes[s.responsavel_compras_id] : undefined}
+              onSave={(responsavelId) => update({ responsavel_compras_id: responsavelId }, "Responsável de compras atualizado")} />
+          ) : <Info label="Responsável de compras" value={s.responsavel_compras_id ? d.nomes[s.responsavel_compras_id] ?? "—" : "Sem responsável"} />}
           <Info label="Endereço da obra" value={s.endereco_obra || "—"} />
           <Info label="Aberta em" value={fmtDate(s.created_at)} />
           <Info label="Custo total" value={fmtBRL(total)} strong />
