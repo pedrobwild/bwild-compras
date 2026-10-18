@@ -16,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CotacoesTab } from "@/components/CotacoesTab";
 import { RevisaoIA } from "@/components/RevisaoIA";
 import { ResponsavelCompra } from "@/components/ResponsavelCompra";
+import { TituloSolicitacao } from "@/components/TituloSolicitacao";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -160,7 +161,8 @@ function Detalhe() {
   // ("Rendered more hooks than during the previous render") na primeira vez que o detalhe abria.
   if (q.isLoading) return <div className="space-y-4"><Skeleton className="h-32" /><Skeleton className="h-64" /></div>;
   if (q.error) return <ErrorState message={(q.error as Error).message} />;
-  const d = q.data!;
+  const d = q.data;
+  if (!d) return <EmptyState title="Solicitação não encontrada." />;
   if (!d.sol) return <EmptyState title="Solicitação não encontrada." action={<Button asChild size="sm"><Link to="/painel">Voltar ao painel</Link></Button>} />;
   const s = d.sol;
   const isOwnerEditable = s.solicitante_id === user?.id && s.status === "nova";
@@ -292,9 +294,18 @@ function Detalhe() {
 
       <div className="rounded-lg border bg-card p-4 md:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-muted-foreground">{s.codigo}</p>
-            <h1 className="text-xl font-semibold tracking-tight md:text-2xl">{s.titulo}</h1>
+            <TituloSolicitacao titulo={s.titulo} editavel={(isCompras || isOwnerEditable) && s.status !== "cancelada"} onSave={async (titulo) => {
+              const { data: salvas, error } = await supabase.from("solicitacoes").update({ titulo }).eq("id", id).select("id");
+              if (error || !salvas?.length) {
+                toast.error(error ? `Não foi possível atualizar: ${error.message}` : "Você não pode alterar esta solicitação nesta etapa.");
+                return false;
+              }
+              refresh();
+              toast.success("Título atualizado");
+              return true;
+            }} />
             <div className="mt-2 flex flex-wrap gap-2">
               <StatusBadge status={s.status} />
               <PrioridadeBadge prioridade={s.prioridade} />

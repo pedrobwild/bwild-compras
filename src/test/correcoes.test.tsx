@@ -126,6 +126,22 @@ beforeEach(() => {
 });
 
 describe("Detalhe da solicitação", () => {
+  it("salva somente o título sem mudar a etapa ou o solicitante", async () => {
+    renderDetalhe();
+    fireEvent.click(await screen.findByRole("button", { name: "Editar título" }));
+    fireEvent.change(screen.getByLabelText("Título"), { target: { value: "  Tinta branca para a sala  " } });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar título" }));
+    await waitFor(() => expect(db.state.updates).toEqual([{ table: "solicitacoes", patch: { titulo: "Tinta branca para a sala" } }]));
+  });
+
+  it("não envia um título vazio ao banco", async () => {
+    renderDetalhe();
+    fireEvent.click(await screen.findByRole("button", { name: "Editar título" }));
+    fireEvent.change(screen.getByLabelText("Título"), { target: { value: "   " } });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar título" }));
+    expect(db.state.updates).toEqual([]);
+  });
+
   it("abre sem quebrar quando os dados chegam (hooks antes dos returns)", async () => {
     renderDetalhe();
     expect(await screen.findByText("Tinta para a sala")).toBeInTheDocument();
