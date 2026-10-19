@@ -18,6 +18,7 @@ import { PrioridadeBadge } from "@/components/badges";
 import { EmptyState, ErrorState, LoadingList } from "@/components/States";
 import { fmtDate, STATUS, textoAtraso, textoVencimento, type PainelRow, type Status } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { cardPosCompra, previsaoChegada } from "@/lib/kanban-card";
 
 export const Route = createFileRoute("/_authenticated/compras")({
   head: () => ({
@@ -26,6 +27,8 @@ export const Route = createFileRoute("/_authenticated/compras")({
       { name: "description", content: "Kanban das solicitações por etapa de compra." },
       { property: "og:title", content: "Fila de Compras — Bwild Compras" },
       { property: "og:description", content: "Kanban das solicitações por etapa de compra." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: Fila,
@@ -190,7 +193,7 @@ function Fila() {
                 <div className="max-h-[65vh] space-y-2 overflow-y-auto pr-1">
                   {list.length === 0 && <p className="px-1 py-4 text-center text-xs text-muted-foreground">Vazio</p>}
                   {list.map((r) => (
-                    <KCard key={r.id} r={r} porCliente={visao === "cliente"} draggable={dropAtivo} dragging={dragId === r.id} onDragStart={() => setDragId(r.id)} onDragEnd={() => { setDragId(null); setOverCol(null); }} />
+                    <KCard key={r.id} r={r} chegada={previsaoChegada(r.proxima_entrega, comprasQ.data?.get(r.id))} porCliente={visao === "cliente"} draggable={dropAtivo} dragging={dragId === r.id} onDragStart={() => setDragId(r.id)} onDragEnd={() => { setDragId(null); setOverCol(null); }} />
                   ))}
                 </div>
               </div>
@@ -228,8 +231,9 @@ function RangePicker({ label, value, onChange }: { label: string; value: DateRan
   );
 }
 
-function KCard({ r, porCliente, draggable, dragging, onDragStart, onDragEnd }: { r: PainelRow; porCliente?: boolean; draggable?: boolean; dragging?: boolean; onDragStart?: () => void; onDragEnd?: () => void }) {
+function KCard({ r, chegada, porCliente, draggable, dragging, onDragStart, onDragEnd }: { r: PainelRow; chegada: string | null; porCliente?: boolean; draggable?: boolean; dragging?: boolean; onDragStart?: () => void; onDragEnd?: () => void }) {
   const dias = differenceInCalendarDays(new Date(), parseISO(r.created_at));
+  const clean = cardPosCompra(r.status);
   return (
     <Link
       to="/solicitacoes/$id"
@@ -237,14 +241,17 @@ function KCard({ r, porCliente, draggable, dragging, onDragStart, onDragEnd }: {
       draggable={draggable}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
-      className={cn("block rounded-md border bg-card p-3 shadow-sm transition-shadow hover:shadow-md", r.atrasada && "border-destructive/60", draggable && "cursor-grab active:cursor-grabbing", dragging && "opacity-40")}
+      className={cn("block rounded-md border bg-card p-3 shadow-sm transition-shadow hover:shadow-md", !clean && r.atrasada && "border-destructive/60", draggable && "cursor-grab active:cursor-grabbing", dragging && "opacity-40")}
     >
       <div className="flex items-center justify-between text-xs">
         <span className="font-medium text-muted-foreground">{r.codigo}</span>
-        <span className="text-muted-foreground">{dias}d em aberto</span>
+        {!clean && <span className="text-muted-foreground">{dias}d em aberto</span>}
       </div>
       <p className="mt-1 text-sm font-medium leading-snug">{r.titulo}</p>
       <p className="truncate text-xs text-muted-foreground">{porCliente ? `${STATUS[r.status].label}${r.empreendimento ? " · " + r.empreendimento : ""}` : r.cliente}</p>
+      {clean ? (
+        <p className="mt-2 text-xs text-muted-foreground">Chegada prevista: {fmtDate(chegada)}</p>
+      ) : <>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         <PrioridadeBadge prioridade={r.prioridade} />
         {r.data_necessaria && <span className={cn("text-xs", (r.dias_atraso_chegada ?? 0) > 0 || (r.dias_atraso == null && r.atrasada) ? "font-medium text-destructive" : "text-muted-foreground")}>até {fmtDate(r.data_necessaria)}</span>}
@@ -255,6 +262,7 @@ function KCard({ r, porCliente, draggable, dragging, onDragStart, onDragEnd }: {
         {!r.atrasada && textoVencimento(r) && <span className="whitespace-nowrap rounded bg-status-cotacao/15 px-1.5 py-0.5 text-[11px] font-medium text-status-cotacao">{textoVencimento(r)}</span>}
         {r.responsavel_nome && <span className="text-[11px] text-muted-foreground">{r.responsavel_nome}</span>}
       </div>
+      </>}
     </Link>
   );
 }
