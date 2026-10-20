@@ -51,7 +51,7 @@ function Fila() {
   const { data, isLoading, error } = usePainel();
   const recursos = useRecursosBanco();
   const qc = useQueryClient();
-  const [visao, setVisao] = useState<"status" | "cliente">("status");
+  const [visao, setVisao] = useState<"status" | "cliente" | "lista">("status");
   const [cliente, setCliente] = useState("todos");
   const [dragId, setDragId] = useState<string | null>(null);
   const [overCol, setOverCol] = useState<string | null>(null);
@@ -150,9 +150,9 @@ function Fila() {
       </div>
       <div className="flex flex-wrap items-center gap-3">
         <div className="inline-flex rounded-md border bg-card p-1">
-          {(["status", "cliente"] as const).map((v) => (
+          {(["status", "cliente", "lista"] as const).map((v) => (
             <button key={v} type="button" onClick={() => setVisao(v)} className={cn("min-h-9 rounded px-3 text-sm font-medium", visao === v ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}>
-              {v === "status" ? "Por status" : "Por cliente"}
+              {v === "status" ? "Por status" : v === "cliente" ? "Por cliente" : "Lista"}
             </button>
           ))}
         </div>
@@ -172,6 +172,28 @@ function Fila() {
         )}
       </div>
       {colunas.length === 0 && <EmptyState title="Nenhuma solicitação na fila." />}
+      {visao === "lista" ? (
+        <div className="overflow-hidden rounded-lg border bg-card">
+          <div className="hidden grid-cols-[6rem_1fr_10rem_9rem_8rem_8rem] gap-3 border-b bg-muted/60 px-4 py-2 text-xs font-medium text-muted-foreground lg:grid">
+            <span>Código</span><span>Título / cliente</span><span>Status</span><span>Responsável</span><span>Prazo</span><span>Chegada</span>
+          </div>
+          {colsAtivas.flatMap((c) => rows.filter((r) => r.status === c.key).sort(ordenar)).map((r) => {
+            const clean = cardPosCompra(r.status);
+            const chegada = previsaoChegada(r.proxima_entrega, comprasQ.data?.get(r.id));
+            const col = COLS.find((c) => c.key === r.status);
+            return (
+              <Link key={r.id} to="/solicitacoes/$id" params={{ id: r.id }} className="grid grid-cols-1 gap-1 border-b px-4 py-3 text-sm last:border-b-0 hover:bg-muted/40 lg:grid-cols-[6rem_1fr_10rem_9rem_8rem_8rem] lg:items-center lg:gap-3">
+                <span className="text-xs font-medium text-muted-foreground">{r.codigo}</span>
+                <span className="min-w-0"><span className="block truncate font-medium">{r.titulo}</span><span className="block truncate text-xs text-muted-foreground">{r.cliente}</span></span>
+                <span className="inline-flex items-center gap-2 text-xs"><span className={cn("h-2 w-2 rounded-full", col?.dot)} />{STATUS[r.status].label}</span>
+                <span className="truncate text-xs text-muted-foreground">{r.responsavel_nome ?? "Sem responsável"}</span>
+                <span className={cn("text-xs", !clean && r.atrasada ? "font-medium text-destructive" : "text-muted-foreground")}>{clean ? "—" : r.data_necessaria ? `até ${fmtDate(r.data_necessaria)}` : "—"}{!clean && r.atrasada && <span className="block">{textoAtraso(r, true)}</span>}</span>
+                <span className="text-xs text-muted-foreground">{chegada ? fmtDate(chegada) : "—"}</span>
+              </Link>
+            );
+          })}
+        </div>
+      ) : (
       <div className="-mx-4 overflow-x-auto px-4 pb-2 lg:-mx-6 lg:px-6">
         <div className="flex items-start gap-4">
           {colunas.map((c) => {
@@ -201,6 +223,7 @@ function Fila() {
           })}
         </div>
       </div>
+      )}
     </div>
   );
 }
