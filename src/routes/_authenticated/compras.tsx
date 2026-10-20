@@ -157,7 +157,7 @@ function Fila() {
           ))}
         </div>
         <Select value={cliente} onValueChange={setCliente}>
-          <SelectTrigger className="w-full sm:w-64"><SelectValue placeholder="Cliente" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-64" aria-label="Filtrar por cliente"><SelectValue placeholder="Filtrar por cliente" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="todos">Todos os clientes</SelectItem>
             {clientes.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
@@ -174,18 +174,19 @@ function Fila() {
       {colunas.length === 0 && <EmptyState title="Nenhuma solicitação na fila." />}
       {visao === "lista" ? (
         <div className="overflow-hidden rounded-lg border bg-card">
-          <div className="hidden grid-cols-[6rem_1fr_10rem_9rem_8rem_8rem] gap-3 border-b bg-muted/60 px-4 py-2 text-xs font-medium text-muted-foreground lg:grid">
-            <span>Código</span><span>Título / cliente</span><span>Status</span><span>Responsável</span><span>Prazo</span><span>Chegada</span>
+          <div className="hidden grid-cols-[5rem_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_6rem_6rem] gap-3 border-b bg-muted/60 px-4 py-2 text-xs font-medium text-muted-foreground lg:grid">
+            <span>Código</span><span>Título</span><span>Cliente</span><span>Status</span><span>Responsável</span><span>Prazo</span><span>Chegada</span>
           </div>
           {colsAtivas.flatMap((c) => rows.filter((r) => r.status === c.key).sort(ordenar)).map((r) => {
             const clean = cardPosCompra(r.status);
             const chegada = previsaoChegada(r.proxima_entrega, comprasQ.data?.get(r.id));
             const col = COLS.find((c) => c.key === r.status);
             return (
-              <Link key={r.id} to="/solicitacoes/$id" params={{ id: r.id }} className="grid grid-cols-1 gap-1 border-b px-4 py-3 text-sm last:border-b-0 hover:bg-muted/40 lg:grid-cols-[6rem_1fr_10rem_9rem_8rem_8rem] lg:items-center lg:gap-3">
+              <Link key={r.id} to="/solicitacoes/$id" params={{ id: r.id }} className="grid grid-cols-1 gap-1 border-b px-4 py-3 text-sm last:border-b-0 hover:bg-muted/40 lg:grid-cols-[5rem_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_6rem_6rem] lg:items-center lg:gap-3">
                 <span className="text-xs font-medium text-muted-foreground">{r.codigo}</span>
-                <span className="min-w-0"><span className="block truncate font-medium">{r.titulo}</span><span className="block truncate text-xs text-muted-foreground">{r.cliente}</span></span>
-                <span className="inline-flex items-center gap-2 text-xs"><span className={cn("h-2 w-2 rounded-full", col?.dot)} />{STATUS[r.status].label}</span>
+                <span className="min-w-0 break-words font-medium">{r.titulo}</span>
+                <span className="min-w-0 break-words text-xs text-muted-foreground"><span className="lg:hidden">Cliente: </span>{r.cliente}</span>
+                <span className="inline-flex min-w-0 items-center gap-2 text-xs"><span className={cn("h-2 w-2 shrink-0 rounded-full", col?.dot)} />{STATUS[r.status].label}</span>
                 <span className="truncate text-xs text-muted-foreground">{r.responsavel_nome ?? "Sem responsável"}</span>
                 <span className={cn("text-xs", !clean && r.atrasada ? "font-medium text-destructive" : "text-muted-foreground")}>{clean ? "—" : r.data_necessaria ? `até ${fmtDate(r.data_necessaria)}` : "—"}{!clean && r.atrasada && <span className="block">{textoAtraso(r, true)}</span>}</span>
                 <span className="text-xs text-muted-foreground">{chegada ? fmtDate(chegada) : "—"}</span>
