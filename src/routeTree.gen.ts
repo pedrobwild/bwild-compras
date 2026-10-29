@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as AuthenticatedAprovacoesRouteImport } from './routes/_authenticated/aprovacoes'
 import { Route as AuthenticatedClientesRouteImport } from './routes/_authenticated/clientes'
 import { Route as AuthenticatedComprasRouteImport } from './routes/_authenticated/compras'
 import { Route as AuthenticatedCotacoesRouteImport } from './routes/_authenticated/cotacoes'
@@ -42,6 +43,11 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedAprovacoesRoute = AuthenticatedAprovacoesRouteImport.update({
+  id: '/aprovacoes',
+  path: '/aprovacoes',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedClientesRoute = AuthenticatedClientesRouteImport.update({
   id: '/clientes',
@@ -102,6 +108,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/aprovacoes': typeof AuthenticatedAprovacoesRoute
   '/clientes': typeof AuthenticatedClientesRoute
   '/compras': typeof AuthenticatedComprasRoute
   '/cotacoes': typeof AuthenticatedCotacoesRoute
@@ -117,6 +124,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/aprovacoes': typeof AuthenticatedAprovacoesRoute
   '/clientes': typeof AuthenticatedClientesRoute
   '/compras': typeof AuthenticatedComprasRoute
   '/cotacoes': typeof AuthenticatedCotacoesRoute
@@ -134,6 +142,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/_authenticated/aprovacoes': typeof AuthenticatedAprovacoesRoute
   '/_authenticated/clientes': typeof AuthenticatedClientesRoute
   '/_authenticated/compras': typeof AuthenticatedComprasRoute
   '/_authenticated/cotacoes': typeof AuthenticatedCotacoesRoute
@@ -151,6 +160,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/reset-password'
+    | '/aprovacoes'
     | '/clientes'
     | '/compras'
     | '/cotacoes'
@@ -166,6 +176,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/reset-password'
+    | '/aprovacoes'
     | '/clientes'
     | '/compras'
     | '/cotacoes'
@@ -182,6 +193,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/login'
     | '/reset-password'
+    | '/_authenticated/aprovacoes'
     | '/_authenticated/clientes'
     | '/_authenticated/compras'
     | '/_authenticated/cotacoes'
@@ -230,6 +242,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/aprovacoes': {
+      id: '/_authenticated/aprovacoes'
+      path: '/aprovacoes'
+      fullPath: '/aprovacoes'
+      preLoaderRoute: typeof AuthenticatedAprovacoesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/clientes': {
       id: '/_authenticated/clientes'
@@ -305,6 +324,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAprovacoesRoute: typeof AuthenticatedAprovacoesRoute
   AuthenticatedClientesRoute: typeof AuthenticatedClientesRoute
   AuthenticatedComprasRoute: typeof AuthenticatedComprasRoute
   AuthenticatedCotacoesRoute: typeof AuthenticatedCotacoesRoute
@@ -318,6 +338,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAprovacoesRoute: AuthenticatedAprovacoesRoute,
   AuthenticatedClientesRoute: AuthenticatedClientesRoute,
   AuthenticatedComprasRoute: AuthenticatedComprasRoute,
   AuthenticatedCotacoesRoute: AuthenticatedCotacoesRoute,
