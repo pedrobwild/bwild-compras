@@ -8,6 +8,8 @@ import { LoadingList, EmptyState, ErrorState } from "@/components/States";
 import { StatusBadge } from "@/components/badges";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ChecklistCompras } from "@/components/ChecklistCompras";
 import { fmtBRL, fmtDate, type PainelRow } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -32,6 +34,7 @@ function ObrasPage() {
   const painel = usePainel();
   const [busca, setBusca] = useState("");
   const [sel, setSel] = useState<string | null>(null);
+  const [visao, setVisao] = useState<"itens" | "historico">("itens");
 
   const compras = useQuery({
     queryKey: ["obras-compras"],
@@ -81,7 +84,7 @@ function ObrasPage() {
         <p className="text-sm text-muted-foreground">Solicitações e compras de cada cliente/obra · total {fmtBRL(totalGeral)}</p>
       </div>
       {painel.isLoading || compras.isLoading ? <LoadingList /> : painel.isError || compras.isError ? <ErrorState message="Não foi possível carregar as obras." /> : (
-        <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
+        <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
           <Card className="space-y-2 p-3">
             <div className="relative">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -107,6 +110,11 @@ function ObrasPage() {
                   <Card key={l} className="p-3"><p className="text-xs text-muted-foreground">{l}</p><p className="text-lg font-semibold tabular-nums">{v}</p></Card>
                 ))}
               </div>
+              <div className="flex flex-wrap gap-2" aria-label="Visualização da obra">
+                <Button className="min-h-11" variant={visao === "itens" ? "default" : "outline"} aria-pressed={visao === "itens"} onClick={() => setVisao("itens")}>Lista de itens</Button>
+                <Button className="min-h-11" variant={visao === "historico" ? "default" : "outline"} aria-pressed={visao === "historico"} onClick={() => setVisao("historico")}>Histórico e valores</Button>
+              </div>
+              {visao === "itens" ? <ChecklistCompras key={ativo.chave} solicitacoes={ativo.solic} /> : <>
               <Card className="p-3">
                 <h2 className="mb-2 font-medium">Compras</h2>
                 {ativo.compras.length === 0 ? <p className="text-sm text-muted-foreground">Nenhuma compra registrada.</p> : (
@@ -132,6 +140,7 @@ function ObrasPage() {
                   ))}
                 </div>
               </Card>
+              </>}
             </div>
           )}
         </div>

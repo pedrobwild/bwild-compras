@@ -18,3 +18,4 @@
 - Buyer assignment uses the existing user_roles and profiles tables and updates only responsavel_compras_id; database RLS remains authoritative and assigning a buyer must not move the card.
 - Title editing uses TituloSolicitacao and writes only solicitacoes.titulo so renaming never changes status, deadlines, or ownership.
 - Kanban card presentation uses browser-safe helpers in src/lib/kanban-card.ts; delivery forecasts reuse existing panel and purchase reads without changing database delay rules.
+- The worksite item checklist reads existing request items in paginated ID chunks and derives purchased indicators from the parent request status; it never writes purchase status or adds independent item completion state.
