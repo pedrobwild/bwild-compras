@@ -17,6 +17,7 @@ import { CotacoesTab } from "@/components/CotacoesTab";
 import { RevisaoIA } from "@/components/RevisaoIA";
 import { ResponsavelCompra } from "@/components/ResponsavelCompra";
 import { TituloSolicitacao } from "@/components/TituloSolicitacao";
+import { LinkReferenciaItem } from "@/components/LinkReferenciaItem";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -455,7 +456,7 @@ function Detalhe() {
           {(isCompras || isAdmin) && d.itens.length > 0 && (
             <RevisaoIA titulo={s.titulo ?? ""} descricao={s.descricao ?? ""} itens={d.itens} />
           )}
-          <ItensTab itens={d.itens} editable={isOwnerEditable} solicitacaoId={id} onChange={refresh} />
+          <ItensTab itens={d.itens} editable={isOwnerEditable} linksEditable={(isCompras || isOwnerEditable) && s.status !== "cancelada"} solicitacaoId={id} onChange={refresh} />
         </TabsContent>
         <TabsContent value="anexos"><AnexosTab anexos={d.anexos} solicitacaoId={id} onChange={refresh} podeImportar={(isCompras || isOwnerEditable) && s.status !== "cancelada"} /></TabsContent>
         <TabsContent value="compras">
@@ -555,7 +556,7 @@ function CancelDialog({ open, onOpenChange, onConfirm }: { open: boolean; onOpen
   );
 }
 
-function ItensTab({ itens, editable, solicitacaoId, onChange }: { itens: Item[]; editable: boolean; solicitacaoId: string; onChange: () => void }) {
+function ItensTab({ itens, editable, linksEditable, solicitacaoId, onChange }: { itens: Item[]; editable: boolean; linksEditable: boolean; solicitacaoId: string; onChange: () => void }) {
   const blank = { descricao: "", quantidade: "1", unidade: "un", ambiente: "", referencia_projeto: "", observacao: "" };
   const [novo, setNovo] = useState(blank);
   const add = async () => {
@@ -601,7 +602,10 @@ function ItensTab({ itens, editable, solicitacaoId, onChange }: { itens: Item[];
                     {list.map((i) => (
                       <TableRow key={i.id}>
                         <TableCell className="font-medium">{i.descricao}<OrigemBadge i={i} /></TableCell>
-                        <TableCell className="max-w-[260px] text-sm"><Espec i={i} /></TableCell>
+                        <TableCell className="max-w-[260px] text-sm">
+                          {i.especificacao && <span className="whitespace-pre-wrap break-words">{i.especificacao}</span>}
+                          <LinkReferenciaItem itemId={i.id} solicitacaoId={solicitacaoId} descricao={i.descricao} link={i.link_referencia} editavel={linksEditable} onSaved={onChange} />
+                        </TableCell>
                         <TableCell className="text-right tabular-nums">{i.quantidade != null ? Number(i.quantidade).toLocaleString("pt-BR") : "—"}</TableCell>
                         <TableCell>{i.unidade}</TableCell>
                         <TableCell>{i.ambiente || "—"}</TableCell>
@@ -620,7 +624,8 @@ function ItensTab({ itens, editable, solicitacaoId, onChange }: { itens: Item[];
                       <p className="font-medium">{i.descricao}<OrigemBadge i={i} /></p>
                       <span className="whitespace-nowrap text-sm tabular-nums">{i.quantidade != null ? Number(i.quantidade).toLocaleString("pt-BR") : "—"} {i.unidade}</span>
                     </div>
-                    {(i.especificacao || i.link_referencia) && <div className="mt-1 text-sm"><Espec i={i} /></div>}
+                    {i.especificacao && <p className="mt-1 whitespace-pre-wrap break-words text-sm">{i.especificacao}</p>}
+                    <LinkReferenciaItem itemId={i.id} solicitacaoId={solicitacaoId} descricao={i.descricao} link={i.link_referencia} editavel={linksEditable} onSaved={onChange} />
                     <p className="mt-1 text-xs text-muted-foreground">{[i.ambiente, i.referencia_projeto, i.observacao].filter(Boolean).join(" · ") || "—"}</p>
                     {editable && <button onClick={() => del(i.id)} className="mt-2 min-h-9 text-xs text-destructive">Remover</button>}
                   </div>
@@ -654,18 +659,6 @@ function ItensTab({ itens, editable, solicitacaoId, onChange }: { itens: Item[];
 function OrigemBadge({ i }: { i: Item }) {
   return i.origem === "projeto_executivo" ? <span className="ml-1.5 rounded border border-accent/40 bg-accent/10 px-1.5 py-0.5 text-[10px] font-medium text-accent">do projeto</span> : null;
 }
-function Espec({ i }: { i: Item }) {
-  if (!i.especificacao && !i.link_referencia) return <>—</>;
-  return (
-    <span className="whitespace-pre-wrap break-words">
-      {i.especificacao}
-      {i.link_referencia && /^https?:\/\//i.test(i.link_referencia) && (
-        <a href={i.link_referencia} target="_blank" rel="noopener noreferrer" className="ml-1 inline-flex items-center gap-0.5 text-primary underline-offset-2 hover:underline"><ExternalLink className="h-3 w-3" /> link</a>
-      )}
-    </span>
-  );
-}
-
 function AnexosTab({ anexos, solicitacaoId, onChange, podeImportar }: { anexos: Anexo[]; solicitacaoId: string; onChange: () => void; podeImportar: boolean }) {
   const { user } = useAuth();
   const [files, setFiles] = useState<PendingFile[]>([]);

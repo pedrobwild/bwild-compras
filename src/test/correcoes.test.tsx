@@ -62,6 +62,10 @@ const db = vi.hoisted(() => {
         const r = resultado();
         return Promise.resolve({ data: r.data?.[0] ?? null, error: r.error });
       },
+      single: () => {
+        const r = resultado();
+        return Promise.resolve({ data: r.data?.[0] ?? null, error: r.error });
+      },
       then: (ok: (v: unknown) => unknown, err: (e: unknown) => unknown) => Promise.resolve(resultado()).then(ok, err),
     });
     return q;
@@ -78,7 +82,7 @@ const db = vi.hoisted(() => {
     removeChannel: () => Promise.resolve("ok"),
     storage: { from: () => ({ remove: () => Promise.resolve({ data: [], error: null }) }) },
   };
-  return { state, supabase, canais };
+  return { state, supabase, canais, tabelas };
 });
 
 vi.mock("@/integrations/supabase/client", () => ({
@@ -123,9 +127,28 @@ function renderDetalhe() {
 beforeEach(() => {
   db.state.bancoCompleto = false;
   db.state.updates.length = 0;
+  db.tabelas["solicitacoes"][0]["status"] = "nova";
+  db.tabelas["solicitacoes"][0]["solicitante_id"] = "u1";
 });
 
 describe("Detalhe da solicitação", () => {
+  it("permite à equipe de compras adicionar o link de um pedido de outra pessoa já em solicitação de pagamento", async () => {
+    db.tabelas["solicitacoes"][0]["status"] = "solicitacao_pagamento";
+    db.tabelas["solicitacoes"][0]["solicitante_id"] = "outra-pessoa";
+    renderDetalhe();
+    fireEvent.click((await screen.findAllByRole("button", { name: "Adicionar link de Tinta acrílica fosca" }))[0]);
+    fireEvent.change(screen.getByLabelText("Link de referência"), { target: { value: "https://loja.example/pagamento" } });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar link" }));
+    await waitFor(() => expect(db.state.updates).toEqual([{ table: "solicitacao_itens", patch: { link_referencia: "https://loja.example/pagamento" } }]));
+  });
+
+  it("não permite editar os links de uma solicitação cancelada", async () => {
+    db.tabelas["solicitacoes"][0]["status"] = "cancelada";
+    renderDetalhe();
+    await screen.findByText("Tinta para a sala");
+    expect(screen.queryByRole("button", { name: "Adicionar link de Tinta acrílica fosca" })).not.toBeInTheDocument();
+  });
+
   it("salva somente o título sem mudar a etapa ou o solicitante", async () => {
     renderDetalhe();
     fireEvent.click(await screen.findByRole("button", { name: "Editar título" }));

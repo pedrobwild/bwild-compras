@@ -19,3 +19,4 @@
 - Title editing uses TituloSolicitacao and writes only solicitacoes.titulo so renaming never changes status, deadlines, or ownership.
 - Kanban card presentation uses browser-safe helpers in src/lib/kanban-card.ts; delivery forecasts reuse existing panel and purchase reads without changing database delay rules.
 - The worksite item checklist reads existing request items in paginated ID chunks and derives purchased indicators from the parent request status; it never writes purchase status or adds independent item completion state.
+- Post-creation item link editing updates only solicitacao_itens.link_referencia, scoped by item and request IDs; keep it separate from full item editing so buyers can add links without changing quantities, ownership, or status.
