@@ -195,8 +195,13 @@ function Painel() {
         <EmptyState title="Nenhuma solicitação encontrada com esses filtros." />
       ) : (
         <>
-          <div className="hidden overflow-hidden rounded-lg border bg-card lg:block">
-            <Table className="data-table">
+          <div className="hidden overflow-hidden rounded-lg border bg-card xl:block">
+            <Table className="data-table spreadsheet-table">
+              <colgroup>
+                <col className="w-[8%]" /><col className="w-[12%]" /><col className="w-[14%]" />
+                <col className="w-[8%]" /><col className="w-[11%]" /><col className="w-[12%]" />
+                <col className="w-[8%]" /><col className="w-[11%]" /><col className="w-[10%]" /><col className="w-[6%]" />
+              </colgroup>
               <TableHeader>
                 <TableRow>
                   <TableHead>Código</TableHead>
@@ -213,7 +218,7 @@ function Painel() {
               </TableHeader>
               <TableBody>
                 {filtered.map((r) => (
-                  <TableRow key={r.id} onClick={() => go(r.id)} className={cn("cursor-pointer", r.atrasada && "bg-destructive/5 hover:bg-destructive/10")}>
+                  <TableRow key={r.id} onClick={() => go(r.id)} title={`${r.codigo} · ${r.cliente} · ${r.titulo}`} className={cn("cursor-pointer", r.atrasada && "bg-destructive/5 hover:bg-destructive/10")}>
                     <TableCell className="whitespace-nowrap font-medium">
                       <span className="flex items-center gap-1">
                         {r.atrasada && <AlertTriangle className="h-3.5 w-3.5 text-destructive" aria-label={textoAtraso(r) ?? "Atrasada"} />}
@@ -239,7 +244,7 @@ function Painel() {
               </TableBody>
             </Table>
           </div>
-          <div className="space-y-3 lg:hidden">
+          <div className="space-y-3 xl:hidden">
             {filtered.map((r) => (
               <Link
                 key={r.id}

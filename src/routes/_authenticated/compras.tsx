@@ -188,7 +188,7 @@ function Fila() {
             const chegada = previsaoChegada(r.proxima_entrega, comprasQ.data?.get(r.id));
             const col = COLS.find((c) => c.key === r.status);
             return (
-              <Link key={r.id} to="/solicitacoes/$id" params={{ id: r.id }} className="data-list-row grid grid-cols-1 gap-1 border-b last:border-b-0 hover:bg-muted/40 lg:grid-cols-[5rem_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_6rem_6rem] lg:items-center lg:gap-3">
+              <Link key={r.id} to="/solicitacoes/$id" params={{ id: r.id }} title={`${r.codigo} · ${r.cliente} · ${r.titulo}`} className="data-list-row spreadsheet-row grid grid-cols-1 gap-1 border-b last:border-b-0 hover:bg-muted/40 lg:grid-cols-[5rem_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_6rem_6rem] lg:items-center lg:gap-3">
                 <span className="text-xs font-medium text-muted-foreground">{r.codigo}</span>
                 <span className="min-w-0 break-words font-medium">{r.titulo}</span>
                 <span className="min-w-0 break-words text-xs text-muted-foreground"><span className="lg:hidden">Cliente: </span>{r.cliente}</span>

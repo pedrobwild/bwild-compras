@@ -229,6 +229,55 @@
     font-variant-numeric: tabular-nums;
   }
 
+  .data-table .tabular-nums,
+  .data-list-row .tabular-nums {
+    white-space: nowrap;
+    overflow-wrap: normal;
+  }
+
+  .spreadsheet-table {
+    table-layout: fixed;
+  }
+
+  .spreadsheet-table th,
+  .spreadsheet-table td {
+    padding-inline: 0.5rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    overflow-wrap: normal;
+    border-right: 1px solid var(--border);
+  }
+
+  .spreadsheet-table td {
+    height: 4.5rem;
+  }
+
+  .spreadsheet-table td > * {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .spreadsheet-table :is(th, td):last-child {
+    border-right: none;
+  }
+
+  @media (min-width: 1024px) {
+    .spreadsheet-row {
+      height: 4.5rem;
+      min-height: 4.5rem;
+    }
+
+    .spreadsheet-row > * {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      overflow-wrap: normal;
+    }
+  }
+
   @media (max-width: 639px) {
     .data-table th,
     .data-table td {
