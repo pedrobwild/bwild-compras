@@ -102,7 +102,7 @@ function Painel() {
         const w = (r: PainelRow) => (r.atrasada ? 2 : 0) + (r.prioridade === "urgente" && !["entregue", "cancelada"].includes(r.status) ? 1 : 0);
         return w(b) - w(a) || b.created_at.localeCompare(a.created_at);
       });
-    return ordenarRegistros(selecionadas, ordem, { nome: (r) => r.titulo, data: (r) => r.created_at, id: (r) => r.id });
+    return ordenarRegistros(selecionadas, ordem, { nome: (r) => r.titulo, data: (r) => r.created_at, necessario: (r) => r.data_necessaria, previsao: (r) => r.proxima_entrega, id: (r) => r.id });
   }, [rows, q, statuses, prio, cliente, minhas, user?.id, ordem]);
 
   const cards = [

@@ -133,7 +133,8 @@ function Fila() {
   const clientes = Array.from(new Set(base.map((r) => r.cliente))).sort((a, b) => a.localeCompare(b, "pt-BR"));
   const rows = (cliente === "todos" ? base : base.filter((r) => r.cliente === cliente)).filter((r) => bateCompra(r.id) && bateEntrega(r.id));
   const ordenar = (a: PainelRow, b: PainelRow) => Number(b.atrasada) - Number(a.atrasada) || (b.dias_atraso ?? 0) - (a.dias_atraso ?? 0) || Number(b.prioridade === "urgente") - Number(a.prioridade === "urgente") || a.created_at.localeCompare(b.created_at);
-  const ordenarLista = (list: PainelRow[]) => ordenarRegistros(list.sort(ordenar), ordem, { nome: (r) => r.titulo, data: (r) => r.created_at, id: (r) => r.id });
+  const camposOrdenacao = { nome: (r: PainelRow) => r.titulo, data: (r: PainelRow) => r.created_at, necessario: (r: PainelRow) => r.data_necessaria, previsao: (r: PainelRow) => previsaoChegada(r.proxima_entrega, comprasQ.data?.get(r.id)), id: (r: PainelRow) => r.id };
+  const ordenarLista = (list: PainelRow[]) => ordenarRegistros(list.sort(ordenar), ordem, camposOrdenacao);
   // "Cronograma confirmado" só vira coluna quando o banco tiver esse status.
   const colsAtivas = recursos.cronograma ? COLS : COLS.filter((c) => c.key !== "cronograma_confirmado");
   const colunas = visao === "status"
@@ -182,7 +183,7 @@ function Fila() {
           <div className="hidden grid-cols-[5rem_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_6rem_6rem] gap-3 border-b bg-muted/60 px-4 py-2 text-xs font-medium text-muted-foreground lg:grid">
             <span>Código</span><span>Título</span><span>Cliente</span><span>Status</span><span>Responsável</span><span>Prazo</span><span>Chegada</span>
           </div>
-          {ordenarRegistros(colsAtivas.flatMap((c) => rows.filter((r) => r.status === c.key).sort(ordenar)), ordem, { nome: (r) => r.titulo, data: (r) => r.created_at, id: (r) => r.id }).map((r) => {
+          {ordenarRegistros(colsAtivas.flatMap((c) => rows.filter((r) => r.status === c.key).sort(ordenar)), ordem, camposOrdenacao).map((r) => {
             const clean = cardPosCompra(r.status);
             const chegada = previsaoChegada(r.proxima_entrega, comprasQ.data?.get(r.id));
             const col = COLS.find((c) => c.key === r.status);

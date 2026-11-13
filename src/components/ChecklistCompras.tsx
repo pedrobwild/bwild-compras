@@ -39,6 +39,7 @@ export function ChecklistCompras({ solicitacoes }: { solicitacoes: PainelRow[] }
   const urgentes = linhas.filter((l) => l.urgente).length;
   const visiveis = ordenarRegistros(filtrarChecklist(linhas, filtro, busca), ordem, {
     nome: (l) => l.descricao, data: (l) => l.solicitacao.created_at, id: (l) => l.id,
+    necessario: (l) => l.solicitacao.data_necessaria, previsao: (l) => l.solicitacao.proxima_entrega,
   });
   const filtros: { key: FiltroChecklist; label: string; total: number }[] = [
     { key: "todos", label: "Todos", total: linhas.length },

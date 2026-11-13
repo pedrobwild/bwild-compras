@@ -7,6 +7,10 @@ const opcoes: { value: Ordenacao; label: string }[] = [
   { value: "antigas", label: "Solicitação: mais antigas" },
   { value: "az", label: "Nome: A a Z" },
   { value: "za", label: "Nome: Z a A" },
+  { value: "necessario_proximo", label: "Necessário até: mais próximo" },
+  { value: "necessario_distante", label: "Necessário até: mais distante" },
+  { value: "previsao_proxima", label: "Previsão: mais próxima" },
+  { value: "previsao_distante", label: "Previsão: mais distante" },
 ];
 
 export function OrdenacaoSelect({ value, onChange }: { value: Ordenacao; onChange: (value: Ordenacao) => void }) {
@@ -14,7 +18,7 @@ export function OrdenacaoSelect({ value, onChange }: { value: Ordenacao; onChang
     const opcao = opcoes.find((o) => o.value === next);
     if (opcao) onChange(opcao.value);
   }}>
-    <SelectTrigger aria-label="Ordenar itens" className="min-h-11 w-full sm:w-64"><SelectValue /></SelectTrigger>
+    <SelectTrigger aria-label="Ordenar itens" className="min-h-11 w-full sm:w-72"><SelectValue /></SelectTrigger>
     <SelectContent>{opcoes.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
   </Select>;
 }

@@ -20,4 +20,4 @@
 - Kanban card presentation uses browser-safe helpers in src/lib/kanban-card.ts; delivery forecasts reuse existing panel and purchase reads without changing database delay rules.
 - The worksite item checklist reads existing request items in paginated ID chunks and derives purchased indicators from the parent request status; it never writes purchase status or adds independent item completion state.
 - Post-creation item link editing updates only solicitacao_itens.link_referencia, scoped by item and request IDs; keep it separate from full item editing so buyers can add links without changing quantities, ownership, or status.
-- Request and checklist ordering share the browser-safe ordenarRegistros helper and OrdenacaoSelect; date ordering uses request creation timestamps and explicit ordering overrides urgency only in presentation.
+- Request and checklist ordering share the browser-safe ordenarRegistros helper and OrdenacaoSelect; date ordering uses creation, required-by, or delivery forecast fields, keeps missing dates last, and overrides urgency only in presentation.
