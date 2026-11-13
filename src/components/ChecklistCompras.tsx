@@ -9,10 +9,13 @@ import { EmptyState, ErrorState, LoadingList } from "@/components/States";
 import { STATUS, fmtDate, type PainelRow } from "@/lib/format";
 import { montarChecklist, filtrarChecklist, type ItemChecklist, type FiltroChecklist } from "@/lib/checklist-compras";
 import { cn } from "@/lib/utils";
+import { OrdenacaoSelect } from "@/components/OrdenacaoSelect";
+import { ordenarRegistros, type Ordenacao } from "@/lib/ordenacao";
 
 export function ChecklistCompras({ solicitacoes }: { solicitacoes: PainelRow[] }) {
   const [filtro, setFiltro] = useState<FiltroChecklist>("todos");
   const [busca, setBusca] = useState("");
+  const [ordem, setOrdem] = useState<Ordenacao>("padrao");
   const ids = solicitacoes.map((r) => r.id).sort();
   const itens = useQuery({
     queryKey: ["painel", "checklist-itens", ids],
@@ -34,7 +37,9 @@ export function ChecklistCompras({ solicitacoes }: { solicitacoes: PainelRow[] }
   const linhas = montarChecklist(itens.data ?? [], solicitacoes);
   const comprados = linhas.filter((l) => l.comprado).length;
   const urgentes = linhas.filter((l) => l.urgente).length;
-  const visiveis = filtrarChecklist(linhas, filtro, busca);
+  const visiveis = ordenarRegistros(filtrarChecklist(linhas, filtro, busca), ordem, {
+    nome: (l) => l.descricao, data: (l) => l.solicitacao.created_at, id: (l) => l.id,
+  });
   const filtros: { key: FiltroChecklist; label: string; total: number }[] = [
     { key: "todos", label: "Todos", total: linhas.length },
     { key: "pendentes", label: "Não comprados", total: linhas.length - comprados },
@@ -52,7 +57,10 @@ export function ChecklistCompras({ solicitacoes }: { solicitacoes: PainelRow[] }
         {f.key === "urgentes" && <AlertTriangle className="h-4 w-4" />}{f.label} <span className="tabular-nums">{f.total}</span>
       </Button>)}
     </div>
-    <div className="relative"><Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" /><Input className="min-h-11 pl-9" aria-label="Buscar item no checklist" placeholder="Buscar item ou código" value={busca} onChange={(e) => setBusca(e.target.value)} /></div>
+    <div className="flex flex-wrap gap-3">
+      <div className="relative min-w-0 flex-1 basis-56"><Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" /><Input className="min-h-11 pl-9" aria-label="Buscar item no checklist" placeholder="Buscar item ou código" value={busca} onChange={(e) => setBusca(e.target.value)} /></div>
+      <OrdenacaoSelect value={ordem} onChange={setOrdem} />
+    </div>
     {itens.isLoading ? <LoadingList /> : itens.isError ? <div className="space-y-2"><ErrorState message="Não foi possível carregar os itens desta obra." /><Button variant="outline" onClick={() => itens.refetch()}>Tentar novamente</Button></div> : visiveis.length === 0 ? <EmptyState title="Nenhum item encontrado." /> : <div className="overflow-hidden rounded-md border">
       <table className="w-full table-fixed text-left text-sm">
         <caption className="sr-only">Itens por situação da solicitação: comprado ou não comprado</caption>

@@ -17,6 +17,8 @@ import { StatusBadge, PrioridadeBadge } from "@/components/badges";
 import { EmptyState, ErrorState, LoadingList } from "@/components/States";
 import { fmtBRL, fmtDate, STATUS, statusDisponiveis, textoAtraso, textoVencimento, type PainelRow, type Status } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { OrdenacaoSelect } from "@/components/OrdenacaoSelect";
+import { ordenarRegistros, type Ordenacao } from "@/lib/ordenacao";
 
 export const Route = createFileRoute("/_authenticated/painel")({
   head: () => ({
@@ -25,6 +27,8 @@ export const Route = createFileRoute("/_authenticated/painel")({
       { name: "description", content: "Acompanhe todas as solicitações de compras das obras." },
       { property: "og:title", content: "Painel de compras — Bwild Compras" },
       { property: "og:description", content: "Acompanhe todas as solicitações de compras das obras." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: Painel,
@@ -65,6 +69,7 @@ function Painel() {
   const [prio, setPrio] = useState("todas");
   const [cliente, setCliente] = useState("todos");
   const [minhas, setMinhas] = useState(false);
+  const [ordem, setOrdem] = useState<Ordenacao>("padrao");
 
   const rows = useMemo(() => data ?? [], [data]);
   const now = new Date();
@@ -84,7 +89,7 @@ function Painel() {
 
   const filtered = useMemo(() => {
     const t = q.trim().toLowerCase();
-    return rows
+    const selecionadas = rows
       .filter((r) => {
         if (t && ![r.codigo, r.cliente, r.titulo, r.fornecedores, r.empreendimento].some((v) => v?.toLowerCase().includes(t))) return false;
         if (statuses.length && !statuses.includes(r.status)) return false;
@@ -97,7 +102,8 @@ function Painel() {
         const w = (r: PainelRow) => (r.atrasada ? 2 : 0) + (r.prioridade === "urgente" && !["entregue", "cancelada"].includes(r.status) ? 1 : 0);
         return w(b) - w(a) || b.created_at.localeCompare(a.created_at);
       });
-  }, [rows, q, statuses, prio, cliente, minhas, user?.id]);
+    return ordenarRegistros(selecionadas, ordem, { nome: (r) => r.titulo, data: (r) => r.created_at, id: (r) => r.id });
+  }, [rows, q, statuses, prio, cliente, minhas, user?.id, ordem]);
 
   const cards = [
     { label: "Novas", value: resumo.novas, cls: "text-status-nova" },
@@ -160,6 +166,7 @@ function Painel() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
+          <OrdenacaoSelect value={ordem} onChange={setOrdem} />
           {statusDisponiveis(recursos.cronograma).map((s) => {
             const on = statuses.includes(s);
             return (

@@ -19,6 +19,8 @@ import { EmptyState, ErrorState, LoadingList } from "@/components/States";
 import { fmtDate, STATUS, textoAtraso, textoVencimento, type PainelRow, type Status } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { cardPosCompra, previsaoChegada } from "@/lib/kanban-card";
+import { OrdenacaoSelect } from "@/components/OrdenacaoSelect";
+import { ordenarRegistros, type Ordenacao } from "@/lib/ordenacao";
 
 export const Route = createFileRoute("/_authenticated/compras")({
   head: () => ({
@@ -53,6 +55,7 @@ function Fila() {
   const qc = useQueryClient();
   const [visao, setVisao] = useState<"status" | "cliente" | "lista">("status");
   const [cliente, setCliente] = useState("todos");
+  const [ordem, setOrdem] = useState<Ordenacao>("padrao");
   const [dragId, setDragId] = useState<string | null>(null);
   const [overCol, setOverCol] = useState<string | null>(null);
   const [compraRange, setCompraRange] = useState<DateRange | undefined>();
@@ -130,11 +133,12 @@ function Fila() {
   const clientes = Array.from(new Set(base.map((r) => r.cliente))).sort((a, b) => a.localeCompare(b, "pt-BR"));
   const rows = (cliente === "todos" ? base : base.filter((r) => r.cliente === cliente)).filter((r) => bateCompra(r.id) && bateEntrega(r.id));
   const ordenar = (a: PainelRow, b: PainelRow) => Number(b.atrasada) - Number(a.atrasada) || (b.dias_atraso ?? 0) - (a.dias_atraso ?? 0) || Number(b.prioridade === "urgente") - Number(a.prioridade === "urgente") || a.created_at.localeCompare(b.created_at);
+  const ordenarLista = (list: PainelRow[]) => ordenarRegistros(list.sort(ordenar), ordem, { nome: (r) => r.titulo, data: (r) => r.created_at, id: (r) => r.id });
   // "Cronograma confirmado" só vira coluna quando o banco tiver esse status.
   const colsAtivas = recursos.cronograma ? COLS : COLS.filter((c) => c.key !== "cronograma_confirmado");
   const colunas = visao === "status"
-    ? colsAtivas.map((c) => ({ key: c.key, titulo: STATUS[c.key].label, dot: c.dot, list: rows.filter((r) => r.status === c.key).sort(ordenar) }))
-    : Array.from(new Set(rows.map((r) => r.cliente))).sort((a, b) => a.localeCompare(b, "pt-BR")).map((cl) => ({ key: cl, titulo: cl, dot: "bg-accent", list: rows.filter((r) => r.cliente === cl).sort(ordenar) }));
+    ? colsAtivas.map((c) => ({ key: c.key, titulo: STATUS[c.key].label, dot: c.dot, list: ordenarLista(rows.filter((r) => r.status === c.key)) }))
+    : Array.from(new Set(rows.map((r) => r.cliente))).sort((a, b) => a.localeCompare(b, "pt-BR")).map((cl) => ({ key: cl, titulo: cl, dot: "bg-accent", list: ordenarLista(rows.filter((r) => r.cliente === cl)) }));
   const semResp = rows.filter((r) => !r.responsavel_compras_id && r.status !== "entregue").length;
   const atrasadas = rows.filter((r) => r.atrasada).length;
 
@@ -164,6 +168,7 @@ function Fila() {
           </SelectContent>
         </Select>
         <RangePicker label="Data de compra" value={compraRange} onChange={setCompraRange} />
+        <OrdenacaoSelect value={ordem} onChange={setOrdem} />
         <RangePicker label="Data de entrega" value={entregaRange} onChange={setEntregaRange} />
         {(compraRange?.from || entregaRange?.from) && (
           <Button variant="ghost" size="sm" onClick={() => { setCompraRange(undefined); setEntregaRange(undefined); }}>
@@ -177,7 +182,7 @@ function Fila() {
           <div className="hidden grid-cols-[5rem_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_6rem_6rem] gap-3 border-b bg-muted/60 px-4 py-2 text-xs font-medium text-muted-foreground lg:grid">
             <span>Código</span><span>Título</span><span>Cliente</span><span>Status</span><span>Responsável</span><span>Prazo</span><span>Chegada</span>
           </div>
-          {colsAtivas.flatMap((c) => rows.filter((r) => r.status === c.key).sort(ordenar)).map((r) => {
+          {ordenarRegistros(colsAtivas.flatMap((c) => rows.filter((r) => r.status === c.key).sort(ordenar)), ordem, { nome: (r) => r.titulo, data: (r) => r.created_at, id: (r) => r.id }).map((r) => {
             const clean = cardPosCompra(r.status);
             const chegada = previsaoChegada(r.proxima_entrega, comprasQ.data?.get(r.id));
             const col = COLS.find((c) => c.key === r.status);
