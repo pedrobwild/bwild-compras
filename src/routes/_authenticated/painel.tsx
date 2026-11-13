@@ -196,7 +196,7 @@ function Painel() {
       ) : (
         <>
           <div className="hidden overflow-hidden rounded-lg border bg-card lg:block">
-            <Table>
+            <Table className="data-table">
               <TableHeader>
                 <TableRow>
                   <TableHead>Código</TableHead>

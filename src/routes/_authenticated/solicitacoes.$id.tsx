@@ -593,7 +593,7 @@ function ItensTab({ itens, editable, linksEditable, solicitacaoId, onChange }: {
                 <span className="text-xs text-muted-foreground">{list.length} {list.length === 1 ? "item" : "itens"}</span>
               </div>
               <div className="hidden overflow-hidden rounded-lg border bg-card md:block">
-                <Table>
+                <Table className="data-table">
                   <TableHeader><TableRow>
                     <TableHead>Descrição</TableHead><TableHead>Especificação</TableHead><TableHead className="text-right">Qtd</TableHead><TableHead>Un.</TableHead>
                     <TableHead>Ambiente</TableHead><TableHead>Referência</TableHead><TableHead>Obs.</TableHead>{editable && <TableHead />}
@@ -713,7 +713,7 @@ function AnexosTab({ anexos, solicitacaoId, onChange, podeImportar }: { anexos: 
       {anexos.length === 0 ? <EmptyState title="Nenhum anexo. Anexe o projeto executivo abaixo." /> : (
         <ul className="divide-y rounded-lg border bg-card">
           {anexos.map((a) => (
-            <li key={a.id} className="flex items-center gap-3 p-3">
+            <li key={a.id} className="data-list-row flex flex-wrap items-center gap-3">
               <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{a.nome_arquivo}</p>

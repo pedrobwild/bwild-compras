@@ -101,7 +101,7 @@ function FornecedoresPage() {
                       const s: any = solic.get(c.solicitacao_id);
                       const atrasou = c.data_entrega_real && c.previsao_entrega && c.data_entrega_real > c.previsao_entrega;
                       return (
-                        <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                        <li key={c.id} className="data-list-row flex flex-wrap items-center justify-between gap-2">
                           <div className="min-w-0">
                             <Link to="/solicitacoes/$id" params={{ id: c.solicitacao_id }} className="font-medium hover:underline">{s ? `${s.codigo} · ${s.titulo ?? ""}` : "Ver solicitação"}</Link>
                             <p className="text-xs text-muted-foreground">Compra {fmtDate(c.data_compra)} · previsão {fmtDate(c.previsao_entrega)}</p>
@@ -124,7 +124,7 @@ function FornecedoresPage() {
                     {ativo.cotacoes.map((c) => {
                       const s: any = solic.get(c.solicitacao_id);
                       return (
-                        <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                        <li key={c.id} className="data-list-row flex flex-wrap items-center justify-between gap-2">
                           <div className="min-w-0">
                             <Link to="/solicitacoes/$id" params={{ id: c.solicitacao_id }} className="font-medium hover:underline">{s ? `${s.codigo} · ${s.titulo ?? ""}` : "Ver solicitação"}</Link>
                             <p className="text-xs text-muted-foreground">{fmtDate(c.created_at)}{c.prazo_entrega_dias != null && ` · prazo ${c.prazo_entrega_dias} dias`}</p>

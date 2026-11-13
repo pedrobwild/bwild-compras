@@ -180,7 +180,7 @@ function Fila() {
       {colunas.length === 0 && <EmptyState title="Nenhuma solicitação na fila." />}
       {visao === "lista" ? (
         <div className="overflow-hidden rounded-lg border bg-card">
-          <div className="hidden grid-cols-[5rem_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_6rem_6rem] gap-3 border-b bg-muted/60 px-4 py-2 text-xs font-medium text-muted-foreground lg:grid">
+          <div className="data-list-header hidden grid-cols-[5rem_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_6rem_6rem] gap-3 border-b lg:grid">
             <span>Código</span><span>Título</span><span>Cliente</span><span>Status</span><span>Responsável</span><span>Prazo</span><span>Chegada</span>
           </div>
           {ordenarRegistros(colsAtivas.flatMap((c) => rows.filter((r) => r.status === c.key).sort(ordenar)), ordem, camposOrdenacao).map((r) => {
@@ -188,7 +188,7 @@ function Fila() {
             const chegada = previsaoChegada(r.proxima_entrega, comprasQ.data?.get(r.id));
             const col = COLS.find((c) => c.key === r.status);
             return (
-              <Link key={r.id} to="/solicitacoes/$id" params={{ id: r.id }} className="grid grid-cols-1 gap-1 border-b px-4 py-3 text-sm last:border-b-0 hover:bg-muted/40 lg:grid-cols-[5rem_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_6rem_6rem] lg:items-center lg:gap-3">
+              <Link key={r.id} to="/solicitacoes/$id" params={{ id: r.id }} className="data-list-row grid grid-cols-1 gap-1 border-b last:border-b-0 hover:bg-muted/40 lg:grid-cols-[5rem_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_6rem_6rem] lg:items-center lg:gap-3">
                 <span className="text-xs font-medium text-muted-foreground">{r.codigo}</span>
                 <span className="min-w-0 break-words font-medium">{r.titulo}</span>
                 <span className="min-w-0 break-words text-xs text-muted-foreground"><span className="lg:hidden">Cliente: </span>{r.cliente}</span>

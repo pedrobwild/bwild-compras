@@ -63,7 +63,7 @@ export function ChecklistCompras({ solicitacoes }: { solicitacoes: PainelRow[] }
       <OrdenacaoSelect value={ordem} onChange={setOrdem} />
     </div>
     {itens.isLoading ? <LoadingList /> : itens.isError ? <div className="space-y-2"><ErrorState message="Não foi possível carregar os itens desta obra." /><Button variant="outline" onClick={() => itens.refetch()}>Tentar novamente</Button></div> : visiveis.length === 0 ? <EmptyState title="Nenhum item encontrado." /> : <div className="overflow-hidden rounded-md border">
-      <table className="w-full table-fixed text-left text-sm">
+      <table className="data-table w-full table-fixed text-left text-sm">
         <caption className="sr-only">Itens por situação da solicitação: comprado ou não comprado</caption>
         <thead className="border-b bg-muted text-xs text-muted-foreground"><tr>
           <th className="w-14 px-2 py-3 text-center" title="Comprado conforme a etapa da solicitação"><Check className="mx-auto h-4 w-4" aria-label="Comprado" /></th>

@@ -170,3 +170,75 @@
     font-family: var(--font-sans);
   }
 }
+
+/* Padrão das listas de dados; não altera calendários, formulários ou o Kanban. */
+@layer utilities {
+  .data-table {
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+
+  .data-table thead,
+  .data-list-header {
+    background-color: var(--muted);
+    color: var(--muted-foreground);
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+
+  .data-table th {
+    height: 2.75rem;
+    padding: 0.75rem;
+    vertical-align: middle;
+  }
+
+  .data-table td {
+    height: 4rem;
+    padding: 0.75rem;
+    vertical-align: middle;
+    overflow-wrap: anywhere;
+  }
+
+  .data-list-row {
+    min-height: 4rem;
+    min-width: 0;
+    padding: 0.75rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+    transition: background-color 150ms;
+  }
+
+  .data-list-row > * {
+    min-width: 0;
+  }
+
+  .data-list-row:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: -2px;
+  }
+
+  .data-list-header {
+    min-height: 2.75rem;
+    align-items: center;
+    padding: 0.75rem;
+  }
+
+  .data-table,
+  .data-list-row {
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (max-width: 639px) {
+    .data-table th,
+    .data-table td {
+      padding-inline: 0.5rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .data-list-row {
+      transition: none;
+    }
+  }
+}

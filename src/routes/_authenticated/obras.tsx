@@ -120,7 +120,7 @@ function ObrasPage() {
                 {ativo.compras.length === 0 ? <p className="text-sm text-muted-foreground">Nenhuma compra registrada.</p> : (
                   <div className="divide-y text-sm">
                     {ativo.compras.map((c) => (
-                      <Link key={c.id} to="/solicitacoes/$id" params={{ id: c.solicitacao_id }} className="flex flex-wrap items-center justify-between gap-2 py-2 hover:bg-muted">
+                      <Link key={c.id} to="/solicitacoes/$id" params={{ id: c.solicitacao_id }} className="data-list-row flex flex-wrap items-center justify-between gap-2 hover:bg-muted">
                         <span><span className="font-mono text-xs text-muted-foreground">{c.codigo}</span> {c.fornecedor ?? "—"}</span>
                         <span className="text-muted-foreground">{fmtDate(c.data_compra)}{c.data_entrega_real ? " · entregue" : ""}</span>
                         <span className="font-medium tabular-nums">{fmtBRL(c.valor_total)}</span>
@@ -133,7 +133,7 @@ function ObrasPage() {
                 <h2 className="mb-2 font-medium">Solicitações</h2>
                 <div className="divide-y text-sm">
                   {ativo.solic.map((r) => (
-                    <Link key={r.id} to="/solicitacoes/$id" params={{ id: r.id }} className="flex flex-wrap items-center justify-between gap-2 py-2 hover:bg-muted">
+                    <Link key={r.id} to="/solicitacoes/$id" params={{ id: r.id }} className="data-list-row flex flex-wrap items-center justify-between gap-2 hover:bg-muted">
                       <span className="min-w-0"><span className="font-mono text-xs text-muted-foreground">{r.codigo}</span> {r.titulo}</span>
                       <span className="flex items-center gap-2"><StatusBadge status={r.status} /><span className="tabular-nums">{fmtBRL(r.custo_total)}</span></span>
                     </Link>

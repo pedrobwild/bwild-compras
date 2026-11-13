@@ -88,7 +88,7 @@ function Usuarios() {
       {q.isLoading ? <LoadingList /> : q.error ? <ErrorState message={(q.error as Error).message} /> : !q.data?.length ? <EmptyState title="Nenhum usuário." /> : (
         <ul className="divide-y rounded-lg border bg-card">
           {q.data.map((u) => (
-            <li key={u.id} className="flex flex-wrap items-center gap-4 p-4">
+            <li key={u.id} className="data-list-row flex flex-wrap items-center gap-4">
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">{u.nome || "—"}</p>
                 <p className="truncate text-xs text-muted-foreground">{u.email} · desde {fmtDate(u.created_at)}</p>
