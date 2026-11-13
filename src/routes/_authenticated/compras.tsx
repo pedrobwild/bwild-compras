@@ -195,7 +195,7 @@ function Fila() {
                 <span className="inline-flex min-w-0 items-center gap-2 text-xs"><span className={cn("h-2 w-2 shrink-0 rounded-full", col?.dot)} />{STATUS[r.status].label}</span>
                 <span className="truncate text-xs text-muted-foreground">{r.responsavel_nome ?? "Sem responsável"}</span>
                 <span className={cn("text-xs", !clean && r.atrasada ? "font-medium text-destructive" : "text-muted-foreground")}>{clean ? "—" : r.data_necessaria ? `até ${fmtDate(r.data_necessaria)}` : "—"}{!clean && r.atrasada && <span className="block">{textoAtraso(r, true)}</span>}</span>
-                <span className="text-xs text-muted-foreground">{chegada ? fmtDate(chegada) : "—"}</span>
+                <span className="whitespace-nowrap text-xs tabular-nums text-muted-foreground">{chegada ? fmtDate(chegada) : "—"}</span>
               </Link>
             );
           })}

@@ -231,8 +231,8 @@ function Painel() {
                     <TableCell className={cn(((r.dias_atraso_chegada ?? 0) > 0 || (r.dias_atraso == null && r.atrasada)) && "font-medium text-destructive")}>{fmtDate(r.data_necessaria)}</TableCell>
                     <TableCell><StatusBadge status={r.status} /></TableCell>
                     <TableCell className="max-w-[160px] truncate text-sm">{r.fornecedores || "—"}</TableCell>
-                    <TableCell className="text-right tabular-nums">{r.custo_total ? fmtBRL(r.custo_total) : "—"}</TableCell>
-                    <TableCell>{fmtDate(r.proxima_entrega)}</TableCell>
+                    <TableCell className="whitespace-nowrap text-right tabular-nums">{r.custo_total ? fmtBRL(r.custo_total) : "—"}</TableCell>
+                    <TableCell className="whitespace-nowrap tabular-nums">{fmtDate(r.proxima_entrega)}</TableCell>
                     <TableCell className="max-w-[120px] truncate text-sm">{r.locais_entrega || "—"}</TableCell>
                   </TableRow>
                 ))}
@@ -258,8 +258,8 @@ function Painel() {
                 <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                   <PrioridadeBadge prioridade={r.prioridade} />
                   <span>Até {fmtDate(r.data_necessaria)}</span>
-                  {r.custo_total ? <span className="font-medium text-foreground">{fmtBRL(r.custo_total)}</span> : null}
-                  {r.proxima_entrega && <span>Entrega {fmtDate(r.proxima_entrega)}</span>}
+                  {r.custo_total ? <span className="whitespace-nowrap font-medium text-foreground">{fmtBRL(r.custo_total)}</span> : null}
+                  {r.proxima_entrega && <span className="whitespace-nowrap">Entrega {fmtDate(r.proxima_entrega)}</span>}
                   {r.fornecedores && <span className="truncate">{r.fornecedores}</span>}
                 </div>
               </Link>
