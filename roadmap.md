@@ -1,4 +1,5 @@
 # Ordenação de compras
+- [x] Acrescentar filtro por período de criação na Fila de Compras, combinado com cliente, compra e entrega, com limpeza conjunta.
 - [x] Estabilizar linhas e colunas ao filtrar: conferência com registros simulados manteve altura de 72px e larguras constantes; 29 testes passaram.
 - [x] Padronizar espaçamento, alinhamento e cabeçalhos das linhas nas tabelas e históricos, preservando os formatos móveis.
 - [x] Conferir estilos com dados simulados em 320, 414 e 1280 px, sem transbordamento; 30 testes passaram.

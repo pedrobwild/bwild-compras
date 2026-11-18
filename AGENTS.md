@@ -22,3 +22,4 @@
 - Post-creation item link editing updates only solicitacao_itens.link_referencia, scoped by item and request IDs; keep it separate from full item editing so buyers can add links without changing quantities, ownership, or status.
 - Request and checklist ordering share the browser-safe ordenarRegistros helper and OrdenacaoSelect; date ordering uses creation, required-by, or delivery forecast fields, keeps missing dates last, and overrides urgency only in presentation.
 - Data tables and history rows opt into data-table, data-list-row, and data-list-header styles; desktop request sheets use fixed colgroups and spreadsheet styles to keep geometry stable under filtering, while smaller screens retain stacked views.
+- Purchase queue date filters use the browser-safe noPeriodo helper with inclusive local calendar days; creation filtering reads created_at and never changes request records.

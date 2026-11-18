@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { cardPosCompra, previsaoChegada } from "@/lib/kanban-card";
 import { OrdenacaoSelect } from "@/components/OrdenacaoSelect";
 import { ordenarRegistros, type Ordenacao } from "@/lib/ordenacao";
+import { noPeriodo } from "@/lib/periodo";
 
 export const Route = createFileRoute("/_authenticated/compras")({
   head: () => ({
@@ -58,6 +59,7 @@ function Fila() {
   const [ordem, setOrdem] = useState<Ordenacao>("padrao");
   const [dragId, setDragId] = useState<string | null>(null);
   const [overCol, setOverCol] = useState<string | null>(null);
+  const [criacaoRange, setCriacaoRange] = useState<DateRange | undefined>();
   const [compraRange, setCompraRange] = useState<DateRange | undefined>();
   const [entregaRange, setEntregaRange] = useState<DateRange | undefined>();
 
@@ -85,14 +87,6 @@ function Fila() {
     },
   });
 
-  const noPeriodo = (iso: string | null | undefined, range?: DateRange) => {
-    if (!range?.from) return true;
-    if (!iso) return false;
-    const d = parseISO(iso);
-    const from = new Date(range.from.getFullYear(), range.from.getMonth(), range.from.getDate());
-    const to = range.to ? new Date(range.to.getFullYear(), range.to.getMonth(), range.to.getDate(), 23, 59, 59) : from;
-    return d >= from && d <= to;
-  };
   const bateCompra = (id: string) => {
     if (!compraRange?.from) return true;
     return (comprasQ.data?.get(id) ?? []).some((c) => noPeriodo(c.data_compra, compraRange));
@@ -131,7 +125,7 @@ function Fila() {
   const limite = subDays(new Date(), 30);
   const base = (data ?? []).filter((r) => r.status !== "cancelada" && (r.status !== "entregue" || parseISO(r.updated_at) >= limite));
   const clientes = Array.from(new Set(base.map((r) => r.cliente))).sort((a, b) => a.localeCompare(b, "pt-BR"));
-  const rows = (cliente === "todos" ? base : base.filter((r) => r.cliente === cliente)).filter((r) => bateCompra(r.id) && bateEntrega(r.id));
+  const rows = (cliente === "todos" ? base : base.filter((r) => r.cliente === cliente)).filter((r) => noPeriodo(r.created_at, criacaoRange) && bateCompra(r.id) && bateEntrega(r.id));
   const ordenar = (a: PainelRow, b: PainelRow) => Number(b.atrasada) - Number(a.atrasada) || (b.dias_atraso ?? 0) - (a.dias_atraso ?? 0) || Number(b.prioridade === "urgente") - Number(a.prioridade === "urgente") || a.created_at.localeCompare(b.created_at);
   const camposOrdenacao = { nome: (r: PainelRow) => r.titulo, data: (r: PainelRow) => r.created_at, necessario: (r: PainelRow) => r.data_necessaria, previsao: (r: PainelRow) => previsaoChegada(r.proxima_entrega, comprasQ.data?.get(r.id)), id: (r: PainelRow) => r.id };
   const ordenarLista = (list: PainelRow[]) => ordenarRegistros(list.sort(ordenar), ordem, camposOrdenacao);
@@ -168,11 +162,12 @@ function Fila() {
             {clientes.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
           </SelectContent>
         </Select>
+        <RangePicker label="Data de criação" value={criacaoRange} onChange={setCriacaoRange} />
         <RangePicker label="Data de compra" value={compraRange} onChange={setCompraRange} />
         <OrdenacaoSelect value={ordem} onChange={setOrdem} />
         <RangePicker label="Data de entrega" value={entregaRange} onChange={setEntregaRange} />
-        {(compraRange?.from || entregaRange?.from) && (
-          <Button variant="ghost" size="sm" onClick={() => { setCompraRange(undefined); setEntregaRange(undefined); }}>
+        {(criacaoRange?.from || compraRange?.from || entregaRange?.from) && (
+          <Button variant="ghost" size="sm" onClick={() => { setCriacaoRange(undefined); setCompraRange(undefined); setEntregaRange(undefined); }}>
             Limpar datas
           </Button>
         )}
