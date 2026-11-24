@@ -1,5 +1,6 @@
 import { toast } from "sonner";
-import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, BUCKET } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
+import { BUCKET, SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "@/lib/supabase-config";
 import { sanitizeFileName } from "@/lib/format";
 
 export const ACCEPT = ".pdf,.dwg,.jpg,.jpeg,.png,.xlsx";

@@ -6,7 +6,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
 import { toast } from "sonner";
-import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL, supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
+import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL, supabaseLivre } from "@/lib/supabase-config";
 import { useAuth, useRole } from "@/hooks/useAuth";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -47,7 +48,7 @@ function Usuarios() {
     enabled: isAdmin,
     queryFn: async () => {
       // Se o script acessos_usuarios.sql ainda não foi rodado, busca sem os campos de acesso.
-      let p: { data: Record<string, unknown>[] | null; error: { message: string } | null } = await supabase
+      let p: { data: Record<string, unknown>[] | null; error: { message: string } | null } = await supabaseLivre
         .from("profiles").select("id, nome, email, created_at, acessos, ultimo_acesso").order("nome").limit(1000);
       if (p.error && /acessos|ultimo_acesso/i.test(p.error.message)) {
         p = await supabase.from("profiles").select("id, nome, email, created_at").order("nome").limit(1000);

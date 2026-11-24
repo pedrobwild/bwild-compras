@@ -12,6 +12,7 @@
 # Bwild Compras — regras técnicas
 
 - Backend é um Supabase externo já pronto; cliente em `src/integrations/supabase/client.ts`. Não habilitar Lovable Cloud nem criar tabelas — o esquema e o RLS vivem fora deste projeto.
+- `src/integrations/supabase/client.ts` is platform-generated: public Supabase constants, the bucket name and the untyped `supabaseLivre` client (for runtime-detected optional columns/functions) live in `src/lib/supabase-config.ts`, so reconnecting the backend never breaks imports.
 - Rotas logadas ficam em `src/routes/_authenticated/` (ssr: false), porque a sessão fica no localStorage.
 - Status, compras e eventos automáticos são calculados por triggers do banco — o front nunca os replica.
 - Listagens leem a view `painel_solicitacoes` via `usePainel` (paginado + Realtime).

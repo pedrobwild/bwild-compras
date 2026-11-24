@@ -7,6 +7,7 @@ import {
   ArrowLeft, Download, ExternalLink, FileText, Hand, Plus, ShoppingCart, Split, Trash2, Truck, Pencil, XCircle, MessageSquare, Check,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { supabaseLivre } from "@/lib/supabase-config";
 import { useAuth, useRole } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -190,7 +191,7 @@ function Detalhe() {
       patch = { ...patch, status: "nova" };
       msg += " — card voltou para Nova (sem prazo de chegada)";
     }
-    const { data: salvas, error } = await supabase.from("solicitacoes").update(patch).eq("id", id).select("id");
+    const { data: salvas, error } = await supabaseLivre.from("solicitacoes").update(patch).eq("id", id).select("id");
     if (error) {
       toast.error("Não foi possível atualizar: " + error.message);
       return false;
@@ -663,7 +664,7 @@ function AnexosTab({ anexos, solicitacaoId, onChange, podeImportar }: { anexos: 
   const { user } = useAuth();
   const [files, setFiles] = useState<PendingFile[]>([]);
   const leitura = useLeituraProjeto(async (v: ValidacaoAplicada) => {
-    const { error } = await supabase.from("solicitacao_itens").insert(v.itens.map((i) => ({
+    const { error } = await supabaseLivre.from("solicitacao_itens").insert(v.itens.map((i) => ({
       solicitacao_id: solicitacaoId, descricao: i.descricao.trim().slice(0, 500), quantidade: i.quantidade, unidade: i.unidade || "un",
       ambiente: i.ambiente || null, referencia_projeto: i.referencia_projeto || null, observacao: i.observacao || null,
       categoria: i.categoria || null, especificacao: i.especificacao.trim() || null, link_referencia: i.link_referencia.trim() || null, origem: "projeto_executivo",

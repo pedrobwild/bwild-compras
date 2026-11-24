@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { supabaseLivre } from "@/lib/supabase-config";
 
 type Role = "solicitante" | "compras" | "admin";
 interface AuthCtx {
@@ -45,7 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Registra o acesso (1x por sessão por usuário). Ignora erro se o script ainda não foi rodado.
     if (acessoRegistrado.current !== uid) {
       acessoRegistrado.current = uid;
-      supabase.rpc("registrar_acesso").then(({ error }) => {
+      supabaseLivre.rpc("registrar_acesso").then(({ error }) => {
         if (error) console.warn("registrar_acesso:", error.message);
       });
     }

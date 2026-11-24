@@ -7,6 +7,7 @@ import { z } from "zod";
 import { Building2, FileUp, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { supabaseLivre } from "@/lib/supabase-config";
 import { useAuth, useRole } from "@/hooks/useAuth";
 import { uploadAnexo } from "@/lib/upload";
 import { useRecursosBanco } from "@/hooks/useRecursos";
@@ -94,16 +95,16 @@ function ClientesPage() {
       prazo_obra: v.prazo_obra,
       extracao_id: v.extracao_id,
     };
-    const criadas: { id: string; codigo: string }[] = [];
+    const criadas: { id: string; codigo: string | null }[] = [];
     for (const i of v.itens) {
       const desc = i.descricao.trim();
-      const { data: sol, error: eSol } = await supabase
+      const { data: sol, error: eSol } = await supabaseLivre
         .from("solicitacoes")
         .insert({ ...base, titulo: `${desc} — ${emp || c.nome}${un ? ` ${un}` : ""}`.slice(0, 200) })
         .select("id, codigo")
         .single();
       if (eSol) { toast.error(`Parou em "${desc}": ` + eSol.message); throw eSol; }
-      const { error: eIt } = await supabase.from("solicitacao_itens").insert({
+      const { error: eIt } = await supabaseLivre.from("solicitacao_itens").insert({
         solicitacao_id: sol.id, descricao: desc.slice(0, 500), quantidade: i.quantidade,
         unidade: i.unidade || "un", ambiente: i.ambiente || null, referencia_projeto: i.referencia_projeto || null,
         observacao: i.observacao || null, categoria: i.categoria || null,

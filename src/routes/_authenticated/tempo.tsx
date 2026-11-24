@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Timer, AlertTriangle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabaseLivre } from "@/lib/supabase-config";
 import { LoadingList, EmptyState, ErrorState } from "@/components/States";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -27,7 +27,7 @@ export const Route = createFileRoute("/_authenticated/tempo")({
 async function fetchAll<T>(table: string, select: string): Promise<T[]> {
   const all: T[] = [];
   for (let from = 0; ; from += 1000) {
-    const { data, error } = await supabase.from(table).select(select).order("created_at").range(from, from + 999);
+    const { data, error } = await supabaseLivre.from(table).select(select).order("created_at").range(from, from + 999);
     if (error) throw error;
     all.push(...((data ?? []) as T[]));
     if (!data || data.length < 1000) break;
