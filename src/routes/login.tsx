@@ -9,7 +9,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/login")({
   ssr: false,
@@ -19,6 +18,8 @@ export const Route = createFileRoute("/login")({
       { name: "description", content: "Acesse o sistema de compras das obras Bwild." },
       { property: "og:title", content: "Entrar — Bwild Compras" },
       { property: "og:description", content: "Acesse o sistema de compras das obras Bwild." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: LoginPage,
@@ -28,7 +29,6 @@ const loginSchema = z.object({
   email: z.string().trim().email("E-mail inválido").max(255),
   password: z.string().min(6, "Mínimo de 6 caracteres").max(100),
 });
-const signupSchema = loginSchema.extend({ nome: z.string().trim().min(2, "Informe seu nome").max(100) });
 
 function Field({ label, error, ...props }: { label: string; error?: string } & React.ComponentProps<typeof Input>) {
   return (
@@ -43,14 +43,13 @@ function Field({ label, error, ...props }: { label: string; error?: string } & R
 function LoginPage() {
   const { session } = useAuth();
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"entrar" | "cadastrar" | "recuperar">("entrar");
+  const [mode, setMode] = useState<"entrar" | "recuperar">("entrar");
 
   useEffect(() => {
     if (session) navigate({ to: "/painel", replace: true });
   }, [session, navigate]);
 
   const login = useForm<z.infer<typeof loginSchema>>({ resolver: zodResolver(loginSchema) });
-  const signup = useForm<z.infer<typeof signupSchema>>({ resolver: zodResolver(signupSchema) });
   const [recEmail, setRecEmail] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -67,6 +66,7 @@ function LoginPage() {
         <div className="rounded-xl border bg-card p-6 shadow-sm">
           {mode === "recuperar" ? (
             <form
+              key="recuperar"
               className="space-y-4"
               onSubmit={async (e) => {
                 e.preventDefault();
@@ -86,59 +86,27 @@ function LoginPage() {
               <h2 className="font-semibold">Recuperar senha</h2>
               <Field label="E-mail" name="rec" type="email" value={recEmail} onChange={(e) => setRecEmail(e.target.value)} />
               <Button className="w-full" disabled={busy}>Enviar link</Button>
-              <button type="button" className="w-full text-sm text-muted-foreground hover:underline" onClick={() => setMode("entrar")}>
+              <Button type="button" variant="link" className="w-full text-sm text-muted-foreground" onClick={() => setMode("entrar")}>
                 Voltar
-              </button>
+              </Button>
             </form>
           ) : (
-            <Tabs value={mode} onValueChange={(v) => setMode(v as typeof mode)}>
-              <TabsList className="mb-4 grid w-full grid-cols-2">
-                <TabsTrigger value="entrar">Entrar</TabsTrigger>
-                <TabsTrigger value="cadastrar">Cadastrar</TabsTrigger>
-              </TabsList>
-              <TabsContent value="entrar">
-                <form
-                  className="space-y-4"
-                  onSubmit={login.handleSubmit(async (v) => {
-                    const { error } = await supabase.auth.signInWithPassword(v);
-                    if (error) toast.error(error.message === "Invalid login credentials" ? "E-mail ou senha incorretos" : /not confirmed/i.test(error.message) ? "Confirme seu e-mail pelo link que enviamos antes de entrar" : error.message);
-                  })}
-                >
-                  <Field label="E-mail" type="email" autoComplete="email" {...login.register("email")} error={login.formState.errors.email?.message} />
-                  <Field label="Senha" type="password" autoComplete="current-password" {...login.register("password")} error={login.formState.errors.password?.message} />
-                  <Button className="w-full" disabled={login.formState.isSubmitting}>Entrar</Button>
-                  <button type="button" className="w-full text-sm text-muted-foreground hover:underline" onClick={() => setMode("recuperar")}>
-                    Esqueci minha senha
-                  </button>
-                </form>
-              </TabsContent>
-              <TabsContent value="cadastrar">
-                <form
-                  className="space-y-4"
-                  onSubmit={signup.handleSubmit(async (v) => {
-                    const { data, error } = await supabase.auth.signUp({
-                      email: v.email,
-                      password: v.password,
-                      options: { data: { nome: v.nome }, emailRedirectTo: window.location.origin },
-                    });
-                    if (error) {
-                      if (/confirm/i.test(error.message)) return toast.success("Enviamos um link de confirmação para seu e-mail");
-                      return toast.error(error.message);
-                    }
-                    if (!data.session) {
-                      toast.success("Enviamos um link de confirmação para seu e-mail");
-                      signup.reset();
-                      setMode("entrar");
-                    }
-                  })}
-                >
-                  <Field label="Nome" {...signup.register("nome")} error={signup.formState.errors.nome?.message} />
-                  <Field label="E-mail" type="email" {...signup.register("email")} error={signup.formState.errors.email?.message} />
-                  <Field label="Senha" type="password" autoComplete="new-password" {...signup.register("password")} error={signup.formState.errors.password?.message} />
-                  <Button className="w-full" disabled={signup.formState.isSubmitting}>Criar conta</Button>
-                </form>
-              </TabsContent>
-            </Tabs>
+            <form
+              key="entrar"
+              className="space-y-4"
+              onSubmit={login.handleSubmit(async (v) => {
+                const { error } = await supabase.auth.signInWithPassword(v);
+                if (error) toast.error(error.message === "Invalid login credentials" ? "E-mail ou senha incorretos" : /not confirmed/i.test(error.message) ? "Confirme seu e-mail pelo link que enviamos antes de entrar" : error.message);
+              })}
+            >
+              <Field label="E-mail" type="email" autoComplete="email" {...login.register("email")} error={login.formState.errors.email?.message} />
+              <Field label="Senha" type="password" autoComplete="current-password" {...login.register("password")} error={login.formState.errors.password?.message} />
+              <Button className="w-full" disabled={login.formState.isSubmitting}>Entrar</Button>
+              <p className="text-center text-xs text-muted-foreground">Não tem acesso? Peça a um administrador.</p>
+              <Button type="button" variant="link" className="w-full text-sm text-muted-foreground" onClick={() => setMode("recuperar")}>
+                Esqueci minha senha
+              </Button>
+            </form>
           )}
         </div>
       </div>

@@ -15,16 +15,11 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { EmptyState, ErrorState, LoadingList } from "@/components/States";
 import { fmtDate } from "@/lib/format";
+import { mensagemErroCadastro, novoUsuarioSchema } from "@/lib/cadastro";
 
 // Cliente sem persistência de sessão: cria o usuário sem deslogar o admin.
 const signupClient = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
-});
-
-const novoUsuarioSchema = z.object({
-  nome: z.string().trim().min(2, "Informe o nome").max(100),
-  email: z.string().trim().email("E-mail inválido").max(255),
-  password: z.string().min(6, "Mínimo de 6 caracteres").max(100),
 });
 
 export const Route = createFileRoute("/_authenticated/admin/usuarios")({
@@ -34,6 +29,8 @@ export const Route = createFileRoute("/_authenticated/admin/usuarios")({
       { name: "description", content: "Gerencie papéis de acesso da equipe." },
       { property: "og:title", content: "Usuários — Bwild Compras" },
       { property: "og:description", content: "Gerencie papéis de acesso da equipe." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: Usuarios,
@@ -81,7 +78,7 @@ function Usuarios() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Usuários</h1>
-          <p className="text-sm text-muted-foreground">Todo cadastro entra como solicitante. Libere Compras ou Admin aqui.</p>
+          <p className="text-sm text-muted-foreground">Só administradores criam usuários. Todo usuário entra como solicitante. Libere Compras ou Admin aqui.</p>
         </div>
         <NovoUsuarioDialog onCreated={() => qc.invalidateQueries({ queryKey: ["admin-usuarios"] })} />
       </div>
@@ -125,8 +122,7 @@ function NovoUsuarioDialog({ onCreated }: { onCreated: () => void }) {
       options: { data: { nome: v.nome }, emailRedirectTo: window.location.origin },
     });
     if (error) {
-      if (/already|registered|exists/i.test(error.message)) return toast.error("Já existe um usuário com este e-mail.");
-      return toast.error(error.message);
+      return toast.error(mensagemErroCadastro(error.message));
     }
     // Com confirmação de e-mail ligada, o Supabase responde "sucesso" para e-mail já cadastrado,
     // mas sem nenhuma identidade: nada foi criado.

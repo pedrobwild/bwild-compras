@@ -2,6 +2,14 @@
 
 Projeto Supabase: `wrpqayrqaiekdycknhsp` (https://wrpqayrqaiekdycknhsp.supabase.co). O app do Lovable usa este Supabase externo (não usa Lovable Cloud).
 
+## Acesso
+
+- Sem cadastro público na tela de login; usuários são criados pelo admin em **Usuários → Novo usuário**.
+- Novos cadastros aceitam somente e-mails `@bwild.com.br` ou `@bewild.com.br`, sem distinguir maiúsculas de minúsculas.
+- Todo usuário novo entra como solicitante. Usuários existentes permanecem inalterados, inclusive os de outros domínios.
+- A proteção no banco depende do gatilho `enforce_signup_domain`, antes de inserir em `auth.users`; `handle_new_user` e `on_auth_user_created` permanecem intactos.
+- **Pendente de aplicação no banco externo:** SQL em `docs/sql/20261124154349_cadastro_so_dominio_bwild.sql`. A plataforma recusou a gravação direta em `supabase/migrations` por não haver banco conectado; o arquivo está no repositório para aplicação manual e registro no histórico externo. Remover o formulário de cadastro, sozinho, não bloqueia cadastros pela API.
+
 ## Estrutura
 
 | Objeto | Função |

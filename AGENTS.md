@@ -23,3 +23,4 @@
 - Request and checklist ordering share the browser-safe ordenarRegistros helper and OrdenacaoSelect; date ordering uses creation, required-by, or delivery forecast fields, keeps missing dates last, and overrides urgency only in presentation.
 - Data tables and history rows opt into data-table, data-list-row, and data-list-header styles; desktop request sheets use fixed colgroups and spreadsheet styles to keep geometry stable under filtering, while smaller screens retain stacked views.
 - Purchase queue date filters use the browser-safe noPeriodo helper with inclusive local calendar days; creation filtering reads created_at and never changes request records.
+- Admin signup validation and error mapping share the browser-safe cadastro module; database enforcement belongs in an auth.users BEFORE INSERT trigger, preserving existing users and the profile-creation trigger.
