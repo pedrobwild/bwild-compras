@@ -1,3 +1,6 @@
+# Pagamentos
+- [ ] Implementar dados de pagamento, diálogo de passagem, fila Pagamentos, migração e testes: aguardando aprovação do plano.
+
 # Acesso ao Bwild Compras
 - [x] Remover cadastro público e validar os dois domínios no Novo usuário; 89 testes passaram, incluindo login existente e recuperação.
 - [x] Preparar a migração de restrição de novos cadastros em docs/sql, sem alterar usuários existentes, tabelas ou RLS; gatilho testado em PostgreSQL isolado, incluindo reexecução e preservação do gatilho de perfis.
