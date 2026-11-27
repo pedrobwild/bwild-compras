@@ -572,12 +572,15 @@ export type Database = {
           empreendimento: string | null
           endereco_obra: string | null
           extracao_id: string | null
+          fornecedor_previsto: string | null
           id: string
+          local_entrega_previsto: string | null
           motivo_cancelamento: string | null
           numero: number
           pagamento_instrucoes: string | null
           pagamento_link: string | null
           prazo_compra: string | null
+          prazo_fornecedor_dias: number | null
           prazo_obra: string | null
           prioridade: Database["public"]["Enums"]["prioridade_solicitacao"]
           responsavel_compras_id: string | null
@@ -586,6 +589,7 @@ export type Database = {
           titulo: string
           unidade: string | null
           updated_at: string
+          valor_estimado: number | null
         }
         Insert: {
           area_m2?: number | null
@@ -597,12 +601,15 @@ export type Database = {
           empreendimento?: string | null
           endereco_obra?: string | null
           extracao_id?: string | null
+          fornecedor_previsto?: string | null
           id?: string
+          local_entrega_previsto?: string | null
           motivo_cancelamento?: string | null
           numero?: never
           pagamento_instrucoes?: string | null
           pagamento_link?: string | null
           prazo_compra?: string | null
+          prazo_fornecedor_dias?: number | null
           prazo_obra?: string | null
           prioridade?: Database["public"]["Enums"]["prioridade_solicitacao"]
           responsavel_compras_id?: string | null
@@ -611,6 +618,7 @@ export type Database = {
           titulo: string
           unidade?: string | null
           updated_at?: string
+          valor_estimado?: number | null
         }
         Update: {
           area_m2?: number | null
@@ -622,12 +630,15 @@ export type Database = {
           empreendimento?: string | null
           endereco_obra?: string | null
           extracao_id?: string | null
+          fornecedor_previsto?: string | null
           id?: string
+          local_entrega_previsto?: string | null
           motivo_cancelamento?: string | null
           numero?: never
           pagamento_instrucoes?: string | null
           pagamento_link?: string | null
           prazo_compra?: string | null
+          prazo_fornecedor_dias?: number | null
           prazo_obra?: string | null
           prioridade?: Database["public"]["Enums"]["prioridade_solicitacao"]
           responsavel_compras_id?: string | null
@@ -636,6 +647,7 @@ export type Database = {
           titulo?: string
           unidade?: string | null
           updated_at?: string
+          valor_estimado?: number | null
         }
         Relationships: [
           {
@@ -672,24 +684,36 @@ export type Database = {
           atrasada: boolean | null
           cliente: string | null
           codigo: string | null
+          cotacao_prazo_dias: number | null
           created_at: string | null
           custo_total: number | null
+          data_compra_min: string | null
           data_necessaria: string | null
           dias_atraso: number | null
           dias_atraso_chegada: number | null
           dias_atraso_compra: number | null
           dias_atraso_entrega: number | null
           empreendimento: string | null
+          fornecedor_exibicao: string | null
+          fornecedor_origem: string | null
+          fornecedor_previsto: string | null
           fornecedores: string | null
           id: string | null
           locais_entrega: string | null
+          local_entrega_previsto: string | null
+          local_exibicao: string | null
+          local_origem: string | null
           numero: number | null
           prazo_compra: string | null
+          prazo_fornecedor_dias: number | null
+          previsao_exibicao: string | null
+          previsao_origem: string | null
           prioridade:
             | Database["public"]["Enums"]["prioridade_solicitacao"]
             | null
           proxima_entrega: string | null
           qtd_anexos: number | null
+          qtd_compras: number | null
           qtd_itens: number | null
           responsavel_compras_id: string | null
           responsavel_nome: string | null
@@ -701,6 +725,9 @@ export type Database = {
           titulo: string | null
           unidade: string | null
           updated_at: string | null
+          valor_estimado: number | null
+          valor_exibicao: number | null
+          valor_origem: string | null
           vence_em_dias: number | null
           via_projeto_executivo: boolean | null
         }
