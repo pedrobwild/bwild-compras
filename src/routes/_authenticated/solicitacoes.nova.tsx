@@ -14,11 +14,13 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileDropzone, type PendingFile } from "@/components/FileDropzone";
 import { uploadAnexo } from "@/lib/upload";
-import { AMBIENTES, CATEGORIAS, UNIDADES } from "@/lib/format";
+import { AMBIENTES, CATEGORIAS, LOCAIS_ENTREGA, UNIDADES, fmtDate, maskBRL, parseBRL } from "@/lib/format";
 import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
 import { useLeituraProjeto, limparRascunho, type ValidacaoAplicada } from "@/components/ValidacaoProjeto";
 import { useRecursosBanco } from "@/hooks/useRecursos";
 import { ClientePicker } from "@/components/ClientePicker";
+import { calcularComprarAte, hojeSP, lerPrazoDias, prazoVencido } from "@/lib/prazos";
 import { mesclarClientes, normalizar, rotuloCliente, sugerirCliente, type ClienteDeSolicitacao, type ClienteObraOpcao } from "@/lib/clientes";
 
 export const Route = createFileRoute("/_authenticated/solicitacoes/nova")({
@@ -58,7 +60,11 @@ const schema = z.object({
   descricao: z.string().trim().max(2000).optional(),
   prioridade: z.enum(["baixa", "normal", "urgente"]),
   prazo_compra: z.string().optional(),
+  prazo_fornecedor: z.string().optional(),
   data_necessaria: z.string().min(1, "Informe o prazo para o item chegar"),
+  fornecedor_previsto: z.string().trim().max(150).optional(),
+  valor_estimado: z.string().optional(),
+  local_entrega_previsto: z.string().max(60).optional(),
   itens: z.array(itemSchema).min(1, "Adicione pelo menos 1 item"),
 });
 type FormValues = z.infer<typeof schema>;
@@ -68,6 +74,13 @@ const resolverSemPrazoCompra = zodResolver(schema) as unknown as Resolver<FormVa
 const resolverComPrazoCompra = zodResolver(
   schema.extend({ prazo_compra: z.string().min(1, "Informe o prazo para efetivar a compra") }),
 ) as unknown as Resolver<FormValues>;
+// Com prazo_fornecedor_dias no banco, digita-se o prazo do fornecedor e o banco calcula o "Comprar até".
+const resolverComPrazoFornecedor = zodResolver(
+  schema.extend({
+    prazo_fornecedor: z.string().trim().min(1, "Informe o prazo do fornecedor").refine((v) => lerPrazoDias(v) != null, "Use um número inteiro de 0 a 365"),
+  }),
+) as unknown as Resolver<FormValues>;
+const SEM_LOCAL = "nao_informado";
 
 const emptyItem = { descricao: "", quantidade: 1, unidade: "un", ambiente: "", referencia_projeto: "", observacao: "", categoria: "", especificacao: "", link_referencia: "", origem: "manual" as const };
 
@@ -139,10 +152,11 @@ function NovaSolicitacao() {
     form.setValue("unidade", c.unidade ?? "");
     form.setValue("endereco_obra", c.endereco ?? "");
   };
-  const exigePrazoCompra = useRef(recursos.prazoCompra);
-  exigePrazoCompra.current = recursos.prazoCompra;
+  const exigePrazo = useRef(recursos);
+  exigePrazo.current = recursos;
   const form = useForm<FormValues>({
-    resolver: (valores, ctx, opcoes) => (exigePrazoCompra.current ? resolverComPrazoCompra : resolverSemPrazoCompra)(valores, ctx, opcoes),
+    resolver: (valores, ctx, opcoes) =>
+      (exigePrazo.current.prazoFornecedor ? resolverComPrazoFornecedor : exigePrazo.current.prazoCompra ? resolverComPrazoCompra : resolverSemPrazoCompra)(valores, ctx, opcoes),
     defaultValues: { prioridade: "normal", itens: [emptyItem] },
   });
   const { fields, append, remove, replace } = useFieldArray({ control: form.control, name: "itens" });
@@ -240,7 +254,17 @@ function NovaSolicitacao() {
         descricao: v.descricao || null,
         prioridade: v.prioridade,
         data_necessaria: v.data_necessaria || null,
-        ...(recursos.prazoCompra ? { prazo_compra: v.prazo_compra || null } : {}),
+        // Com o prazo do fornecedor, o banco calcula prazo_compra; sem ele, segue o campo antigo.
+        ...(recursos.prazoFornecedor
+          ? { prazo_fornecedor_dias: lerPrazoDias(v.prazo_fornecedor) }
+          : recursos.prazoCompra ? { prazo_compra: v.prazo_compra || null } : {}),
+        ...(recursos.previstos
+          ? {
+              fornecedor_previsto: v.fornecedor_previsto?.trim() || null,
+              valor_estimado: v.valor_estimado ? parseBRL(v.valor_estimado) : null,
+              local_entrega_previsto: v.local_entrega_previsto && v.local_entrega_previsto !== SEM_LOCAL ? v.local_entrega_previsto : null,
+            }
+          : {}),
         area_m2: extra.area_m2,
         prazo_obra: extra.prazo_obra,
         extracao_id: extra.extracao_id,
@@ -361,7 +385,9 @@ function NovaSolicitacao() {
               </Select>
             )} />
           </div>
-          {recursos.prazoCompra && (
+          {recursos.prazoFornecedor ? (
+            <PrazoFornecedorCampo form={form} />
+          ) : recursos.prazoCompra && (
             <div className="space-y-1.5">
               <Label>Prazo para efetivar a compra *</Label>
               <Input type="date" {...form.register("prazo_compra")} />
@@ -374,6 +400,33 @@ function NovaSolicitacao() {
             {form.formState.errors.data_necessaria && <p className="text-xs text-destructive">{form.formState.errors.data_necessaria.message}</p>}
           </div>
         </div>
+        {recursos.prazoFornecedor && <ComprarAte form={form} />}
+        {recursos.previstos && (
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="fornecedor-previsto">Fornecedor previsto</Label>
+              <Input id="fornecedor-previsto" maxLength={150} placeholder="Opcional" {...form.register("fornecedor_previsto")} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="valor-estimado">Valor estimado (R$)</Label>
+              <Controller control={form.control} name="valor_estimado" render={({ field }) => (
+                <Input id="valor-estimado" inputMode="numeric" placeholder="Opcional" value={field.value ?? ""} onChange={(ev) => field.onChange(maskBRL(ev.target.value))} />
+              )} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Local de entrega</Label>
+              <Controller control={form.control} name="local_entrega_previsto" render={({ field }) => (
+                <Select value={field.value || SEM_LOCAL} onValueChange={field.onChange}>
+                  <SelectTrigger aria-label="Local de entrega"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={SEM_LOCAL}>Não informado</SelectItem>
+                    {LOCAIS_ENTREGA.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              )} />
+            </div>
+          </div>
+        )}
       </Section>
 
       <Section title="Itens">
@@ -519,6 +572,33 @@ function ItemCard({ form, i, err, podeRemover, onRemove }: { form: any; i: numbe
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+type FormNova = ReturnType<typeof useForm<FormValues>>;
+
+function PrazoFornecedorCampo({ form }: { form: FormNova }) {
+  const erro = form.formState.errors.prazo_fornecedor?.message;
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor="prazo-fornecedor">Prazo do fornecedor (dias) *</Label>
+      <Input id="prazo-fornecedor" inputMode="numeric" placeholder="Ex.: 15" {...form.register("prazo_fornecedor")} />
+      {erro ? <p className="text-xs text-destructive">{erro}</p> : <p className="text-xs text-muted-foreground">Dias corridos entre a compra e a entrega.</p>}
+    </div>
+  );
+}
+
+/** "Comprar até", só leitura: data na obra menos o prazo do fornecedor (o banco grava o mesmo cálculo). */
+function ComprarAte({ form }: { form: FormNova }) {
+  const [dataObra, prazo] = form.watch(["data_necessaria", "prazo_fornecedor"]);
+  const comprarAte = calcularComprarAte(dataObra, lerPrazoDias(prazo ?? ""));
+  const vencido = prazoVencido(comprarAte, hojeSP());
+  return (
+    <div className={cn("rounded-md border px-3 py-2 text-sm", vencido ? "border-destructive/40 bg-destructive/5" : "bg-muted/40")} aria-live="polite">
+      <span className="text-muted-foreground">Comprar até: </span>
+      <span className={cn("font-medium tabular-nums", vencido && "text-destructive")}>{comprarAte ? fmtDate(comprarAte) : "preencha o prazo do fornecedor e a data na obra"}</span>
+      {vencido && <p className="mt-1 text-xs text-destructive">Essa data já passou — a compra precisa ser feita o quanto antes. Você ainda pode enviar.</p>}
     </div>
   );
 }

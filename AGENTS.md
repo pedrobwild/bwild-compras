@@ -28,3 +28,6 @@
 - Multiple payments use solicitacao_pagamentos as the source of truth, scalar item links and payment-specific attachments; the transactional salvar_pagamentos RPC checks the request version and final invariants so concurrent edits cannot silently overwrite data, while shared dialogs preserve approval and delay triggers.
 - Legacy payment columns remain for reference only; payment attachments are never duplicated by card splitting, because a shared payment must retain its original item and request associations.
 - Payment server functions use requireSupabaseAuth and the client bearer middleware in src/start.ts; related reads are paginated in bounded ID batches so RLS remains authoritative and no service-role client is needed.
+- prazo_compra is derived in the database from data_necessaria minus solicitacoes.prazo_fornecedor_dias (trigger solicitacoes_calcular_prazo); screens edit the supplier lead time and only display "Comprar até", so the calculation never depends on the UI.
+- Panel supplier, value, location and forecast use painel_solicitacoes *_exibicao/*_origem (purchase > chosen quote > request) so the priority lives in one place; weekly spend groups those rows plus purchases in browser-safe src/lib/gasto-semanal.ts without double-counting requests that already have purchases.
+

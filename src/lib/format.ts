@@ -109,7 +109,26 @@ export interface PainelRow {
   tipo_atraso?: TipoAtraso | null;
   situacao_prazo?: SituacaoPrazo | null;
   vence_em_dias?: number | null;
+  /* Prazo do fornecedor e melhor informação disponível (compra > cotação escolhida > solicitação).
+     Opcionais: só existem depois do script 20261127_prazo_fornecedor_previstos.sql. */
+  prazo_fornecedor_dias?: number | null;
+  qtd_compras?: number | null;
+  data_compra_min?: string | null;
+  fornecedor_exibicao?: string | null;
+  fornecedor_origem?: OrigemInfo | null;
+  valor_exibicao?: number | null;
+  valor_origem?: OrigemInfo | null;
+  local_exibicao?: string | null;
+  local_origem?: OrigemInfo | null;
+  previsao_exibicao?: string | null;
+  previsao_origem?: OrigemInfo | null;
+  cotacao_prazo_dias?: number | null;
 }
+
+export type OrigemInfo = "compra" | "cotacao" | "solicitacao";
+const ORIGEM_INFO: Record<OrigemInfo, string> = { compra: "Compra registrada", cotacao: "Cotação escolhida", solicitacao: "Informado na solicitação" };
+/** Texto de ajuda para o que ainda é previsão (null quando é compra registrada). */
+export const origemPrevista = (o: OrigemInfo | null | undefined) => (o && o !== "compra" ? `Previsto — ${ORIGEM_INFO[o].toLowerCase()}` : null);
 
 export type TipoAtraso = "compra" | "entrega" | "chegada";
 export type SituacaoPrazo = "atrasada" | "vence_hoje" | "vence_em_breve" | "no_prazo" | "sem_prazo" | "concluida";

@@ -18,6 +18,10 @@ export interface RecursosBanco {
   clienteObra: boolean;
   /** tabela de pagamentos múltiplos e vínculos de itens/boletos */
   pagamentos: boolean;
+  /** coluna solicitacoes.prazo_fornecedor_dias (prazo de compra calculado no banco) */
+  prazoFornecedor: boolean;
+  /** colunas fornecedor_previsto, valor_estimado e local_entrega_previsto */
+  previstos: boolean;
 }
 
 type ErroPg = { code?: string; message?: string } | null;
@@ -29,7 +33,7 @@ const tabelaFalta = (e: ErroPg) =>
   !!e && (e.code === "42P01" || e.code === "PGRST205" || /could not find the table|relation .* does not exist/i.test(e.message ?? ""));
 
 /** Enquanto a verificação não termina, nada opcional aparece (evita salvar em coluna inexistente). */
-const NENHUM: RecursosBanco = { prazoCompra: false, cronograma: false, anexosCotacao: false, clienteObra: false, pagamentos: false };
+const NENHUM: RecursosBanco = { prazoCompra: false, cronograma: false, anexosCotacao: false, clienteObra: false, pagamentos: false, prazoFornecedor: false, previstos: false };
 
 export function useRecursosBanco(): RecursosBanco {
   const q = useQuery({
@@ -37,7 +41,7 @@ export function useRecursosBanco(): RecursosBanco {
     staleTime: Infinity,
     retry: 2,
     queryFn: async (): Promise<RecursosBanco> => {
-      const [prazo, cronograma, anexos, cliente, pagamento, finalidade, itensPagamento] = await Promise.all([
+      const [prazo, cronograma, anexos, cliente, pagamento, finalidade, itensPagamento, fornecedor, previstos] = await Promise.all([
         supabase.from("solicitacoes").select("prazo_compra").limit(1),
         supabase.from("solicitacoes").select("id").eq("status", "cronograma_confirmado").limit(1),
         supabase.from("cotacao_anexos").select("id").limit(1),
@@ -45,6 +49,8 @@ export function useRecursosBanco(): RecursosBanco {
         supabase.from("solicitacao_pagamentos").select("id,onde_comprado,valor,link,codigo,observacao").limit(1),
         supabase.from("solicitacao_anexos").select("finalidade,pagamento_id").limit(1),
         supabase.from("solicitacao_itens").select("pagamento_id").limit(1),
+        supabase.from("solicitacoes").select("prazo_fornecedor_dias").limit(1),
+        supabase.from("solicitacoes").select("fornecedor_previsto,valor_estimado,local_entrega_previsto").limit(1),
       ]);
       // Só conta como existente quando a consulta funcionou. Outro erro (rede caiu, timeout) não decide nada:
       // a consulta falha, tenta de novo e, enquanto isso, os campos opcionais ficam escondidos.
@@ -59,6 +65,8 @@ export function useRecursosBanco(): RecursosBanco {
         anexosCotacao: existe(anexos.error, tabelaFalta),
         clienteObra: existe(cliente.error, colunaFalta),
         pagamentos: existe(pagamento.error, tabelaFalta) && existe(finalidade.error, colunaFalta) && existe(itensPagamento.error, colunaFalta),
+        prazoFornecedor: existe(fornecedor.error, colunaFalta),
+        previstos: existe(previstos.error, colunaFalta),
       };
     },
   });

@@ -26,7 +26,7 @@ const db = vi.hoisted(() => {
   const erroDoBanco = (tabela: string, colunas: string, filtros: [string, unknown][]) => {
     if (state.bancoCompleto) return null;
     if (tabela === "cotacao_anexos") return { code: "PGRST205", message: "Could not find the table 'public.cotacao_anexos' in the schema cache" };
-    if (tabela === "solicitacoes" && /prazo_compra|data_compra_efetiva/.test(colunas)) return { code: "42703", message: `column solicitacoes.${colunas} does not exist` };
+    if (tabela === "solicitacoes" && /prazo_compra|data_compra_efetiva|prazo_fornecedor_dias|fornecedor_previsto/.test(colunas)) return { code: "42703", message: `column solicitacoes.${colunas} does not exist` };
     if (tabela === "solicitacao_pagamentos") return { code: "PGRST205", message: "Could not find the table public.solicitacao_pagamentos" };
     if (tabela === "solicitacao_anexos" && colunas.includes("finalidade")) return { code: "42703", message: "column solicitacao_anexos.finalidade does not exist" };
     if (filtros.some(([c, v]) => c === "status" && v === "cronograma_confirmado"))
@@ -177,8 +177,9 @@ describe("Detalhe da solicitação", () => {
     const qc = renderDetalhe();
     await screen.findByText("Tinta para a sala");
     await waitFor(() => expect(qc.getQueryData(["recursos-banco"])).toBeDefined());
-    expect(qc.getQueryData(["recursos-banco"])).toEqual({ prazoCompra: false, cronograma: false, anexosCotacao: false, clienteObra: true, pagamentos: false });
+    expect(qc.getQueryData(["recursos-banco"])).toEqual({ prazoCompra: false, cronograma: false, anexosCotacao: false, clienteObra: true, pagamentos: false, prazoFornecedor: false, previstos: false });
     expect(screen.queryByText("Prazo para efetivar compra")).not.toBeInTheDocument();
+    expect(screen.queryByText("Prazo do fornecedor (dias)")).not.toBeInTheDocument();
     expect(screen.queryByText("Cronograma confirmado")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Prazo para o item chegar")).toBeInTheDocument();
   });
@@ -186,7 +187,10 @@ describe("Detalhe da solicitação", () => {
   it("mostra os campos quando o banco tem os recursos", async () => {
     db.state.bancoCompleto = true;
     renderDetalhe();
-    expect(await screen.findByText("Prazo para efetivar compra")).toBeInTheDocument();
+    // Com o prazo do fornecedor no banco, ele substitui o antigo "Prazo para efetivar compra".
+    expect(await screen.findByText("Prazo do fornecedor (dias)")).toBeInTheDocument();
+    expect(screen.getByText("Comprar até")).toBeInTheDocument();
+    expect(screen.queryByText("Prazo para efetivar compra")).not.toBeInTheDocument();
     expect(screen.getByText("Cronograma confirmado")).toBeInTheDocument();
   });
 

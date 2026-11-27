@@ -5,6 +5,7 @@ import { Check, FileText, Image as ImageIcon, Paperclip, Pencil, Plus, Trash2, T
 import { supabase } from "@/integrations/supabase/client";
 import { BUCKET } from "@/lib/supabase-config";
 import { useRecursosBanco } from "@/hooks/useRecursos";
+import { devePerguntarPrazo } from "@/lib/prazos";
 import { nomeCanal } from "@/lib/realtime";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,7 +44,7 @@ const ACCEPT_ANEXO = ".pdf,.png,.jpg,.jpeg";
 export function CotacoesTab({ solicitacaoId, podeEditar }: { solicitacaoId: string; podeEditar: boolean }) {
   const qc = useQueryClient();
   // Sem a tabela cotacao_anexos no banco, o arquivo subia e o registro falhava (arquivo órfão e erro).
-  const { anexosCotacao } = useRecursosBanco();
+  const { anexosCotacao, prazoFornecedor } = useRecursosBanco();
   const key = ["cotacoes", solicitacaoId];
   const q = useQuery({
     queryKey: key,
@@ -162,6 +163,21 @@ export function CotacoesTab({ solicitacaoId, podeEditar }: { solicitacaoId: stri
     if (error) return toast.error(error.message);
     toast.success(novo ? `${c.fornecedor} marcado como escolhido` : "Escolha removida");
     refresh();
+    if (novo && prazoFornecedor) await oferecerPrazoDaCotacao(c);
+  };
+  // Escolher a cotação não depende da resposta: só pergunta se quer alinhar o prazo do fornecedor.
+  const oferecerPrazoDaCotacao = async (c: Cotacao) => {
+    const { data } = await supabase.from("solicitacoes").select("prazo_fornecedor_dias").eq("id", solicitacaoId).maybeSingle();
+    const atual = (data as { prazo_fornecedor_dias: number | null } | null)?.prazo_fornecedor_dias ?? null;
+    if (!devePerguntarPrazo(atual, c.prazo_entrega_dias)) return;
+    const msg = `A cotação de ${c.fornecedor} entrega em ${c.prazo_entrega_dias} dias, e a solicitação usa ${atual == null ? "nenhum prazo" : `${atual} dias`}. Atualizar o prazo do fornecedor para ${c.prazo_entrega_dias} dias? O "Comprar até" será recalculado.`;
+    if (!window.confirm(msg)) return;
+    const { data: alteradas, error } = await supabase.from("solicitacoes").update({ prazo_fornecedor_dias: c.prazo_entrega_dias } as never).eq("id", solicitacaoId).select("id");
+    if (error) return toast.error("Não foi possível atualizar o prazo: " + error.message);
+    if (!alteradas?.length) return toast.error("Não foi possível atualizar o prazo: sem permissão.");
+    toast.success(`Prazo do fornecedor atualizado para ${c.prazo_entrega_dias} dias`);
+    qc.invalidateQueries({ queryKey: ["solicitacao", solicitacaoId] });
+    qc.invalidateQueries({ queryKey: ["painel"] });
   };
   const excluir = async (c: Cotacao) => {
     if (!confirm(`Excluir a cotação de ${c.fornecedor}?`)) return;

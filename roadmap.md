@@ -1,3 +1,11 @@
+# Prazo do fornecedor, previstos e gasto semanal
+- [x] Diagnóstico do painel: todas as compras chegam; encontrados previsão que sumia após a entrega, compras duplicadas (SC-0406, SC-0432) e SC-0413 de volta a Solicitação de pagamento com compra.
+- [x] Banco: prazo do fornecedor, "Comprar até" calculado por gatilho, 187 solicitações antigas preenchidas, campos previstos e painel com compra > cotação > solicitação; teste de banco revertido passou.
+- [x] Telas: nova solicitação, cabeçalho de prazos, pergunta ao escolher cotação, aviso de compra repetida, colunas com "previsto", bloco "Gasto por semana" e cards do mês; 145 testes passaram e conferência simulada em 390 e 1280 px.
+- [ ] Decidir o que fazer com as compras duplicadas da SC-0406 e SC-0432 e com a SC-0413: aguardando o Pedro.
+- [ ] Validar com sessão real: o Supabase externo não emite sessão de teste por aqui.
+- [ ] Publicar: aguardando autorização.
+
 # Vários pagamentos por solicitação
 - [x] Plano aprovado; estrutura aplicada no Supabase conectado, sem dados antigos para transferir e com colunas antigas preservadas.
 - [x] Diálogo com vários pagamentos, fila expansível, detalhe e filtro Na obra até; 126 testes automáticos e testes de banco revertidos passaram.

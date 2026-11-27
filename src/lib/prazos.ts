@@ -40,6 +40,11 @@ export function lerPrazoDias(texto: string | number | null | undefined) {
   return n <= PRAZO_FORNECEDOR_MAX ? n : null;
 }
 
+/** Ao escolher uma cotação: pergunta só quando ela traz um prazo válido diferente do informado. */
+export function devePerguntarPrazo(atual: number | null | undefined, daCotacao: number | null | undefined) {
+  return daCotacao != null && Number.isInteger(daCotacao) && daCotacao >= 0 && daCotacao <= PRAZO_FORNECEDOR_MAX && daCotacao !== atual;
+}
+
 /** Hoje no fuso de São Paulo. */
 export function hojeSP(agora = new Date()) {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).format(agora);

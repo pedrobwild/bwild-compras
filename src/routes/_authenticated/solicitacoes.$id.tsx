@@ -21,6 +21,7 @@ import { TituloSolicitacao } from "@/components/TituloSolicitacao";
 import { LinkReferenciaItem } from "@/components/LinkReferenciaItem";
 import { PagamentoDialog } from "@/components/PagamentoDialog";
 import { PagamentoResumo } from "@/components/PagamentoResumo";
+import { ComprarAteInfo, PrazoFornecedorInfo } from "@/components/PrazoFornecedor";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -53,7 +54,7 @@ export const Route = createFileRoute("/_authenticated/solicitacoes/$id")({
 
 interface Solicitacao {
   id: string; codigo: string; cliente: string; empreendimento: string | null; unidade: string | null; endereco_obra: string | null;
-  titulo: string; descricao: string | null; prioridade: Prioridade; data_necessaria: string | null; prazo_compra?: string | null; data_compra_efetiva?: string | null; status: Status;
+  titulo: string; descricao: string | null; prioridade: Prioridade; data_necessaria: string | null; prazo_compra?: string | null; prazo_fornecedor_dias?: number | null; fornecedor_previsto?: string | null; local_entrega_previsto?: string | null; data_compra_efetiva?: string | null; status: Status;
   solicitante_id: string; responsavel_compras_id: string | null; motivo_cancelamento: string | null; created_at: string;
   area_m2?: number | null; prazo_obra?: string | null; extracao_id?: string | null;
 }
@@ -242,6 +243,9 @@ function Detalhe() {
         status: s.status, solicitante_id: s.solicitante_id, responsavel_compras_id: s.responsavel_compras_id,
         area_m2: s.area_m2 ?? null, prazo_obra: s.prazo_obra ?? null, extracao_id: s.extracao_id ?? null,
         ...(recursos.prazoCompra ? { prazo_compra: s.prazo_compra ?? null } : {}),
+        // O valor estimado é do card inteiro: não é copiado para cada item.
+        ...(recursos.prazoFornecedor ? { prazo_fornecedor_dias: s.prazo_fornecedor_dias ?? null } : {}),
+        ...(recursos.previstos ? { fornecedor_previsto: s.fornecedor_previsto ?? null, local_entrega_previsto: s.local_entrega_previsto ?? null } : {}),
       };
       for (const it of d.itens) {
         const { data: sol, error: eSol } = await supabase.from("solicitacoes")
@@ -381,7 +385,12 @@ function Detalhe() {
           <Info label="Cliente" value={s.cliente} />
           <Info label="Empreendimento / Unidade" value={[s.empreendimento, s.unidade].filter(Boolean).join(" · ") || "—"} />
           <Info label="Solicitante" value={d.nomes[s.solicitante_id] ?? "—"} />
-          {recursos.prazoCompra && (
+          {recursos.prazoFornecedor ? (
+            <>
+              <PrazoFornecedorInfo value={s.prazo_fornecedor_dias ?? null} editavel={isCompras || isOwnerEditable} onSave={(v) => update({ prazo_fornecedor_dias: v }, "Prazo do fornecedor atualizado")} />
+              <ComprarAteInfo value={s.prazo_compra ?? null} concluido={["comprada", "entregue_parcial", "entregue", "cancelada"].includes(s.status)} />
+            </>
+          ) : recursos.prazoCompra && (
             <PrazoInfo label="Prazo para efetivar compra" value={s.prazo_compra ?? null} editavel={isCompras || isOwnerEditable} onSave={(v) => update({ prazo_compra: v }, "Prazo de compra atualizado")} concluido={["comprada", "entregue_parcial", "entregue", "cancelada"].includes(s.status)} />
           )}
           <PrazoInfo label="Prazo para o item chegar" value={s.data_necessaria} editavel={isCompras || isOwnerEditable} onSave={(v) => update({ data_necessaria: v }, "Prazo de chegada atualizado")} concluido={["entregue", "cancelada"].includes(s.status)} />

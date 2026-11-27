@@ -11,7 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FORMAS_PAGAMENTO, LOCAIS_ENTREGA, maskBRL, numToMask, parseBRL } from "@/lib/format";
+import { FORMAS_PAGAMENTO, LOCAIS_ENTREGA, fmtBRL, fmtDate, maskBRL, numToMask, parseBRL } from "@/lib/format";
+import { compraRepetida, type CompraResumo } from "@/lib/compras";
 
 export interface Compra {
   id: string;
@@ -110,6 +111,12 @@ export function CompraDialog({
       endereco_entrega: v.endereco_entrega || null,
       observacao: v.observacao || null,
     };
+    if (!compra) {
+      // Evita registrar a mesma compra duas vezes (já aconteceu e somou o custo em dobro no painel).
+      const { data: existentes } = await supabase.from("compras").select("fornecedor, valor_total, data_compra").eq("solicitacao_id", solicitacaoId);
+      const igual = compraRepetida((existentes ?? []) as CompraResumo[], payload);
+      if (igual && !window.confirm(`Já existe uma compra de ${igual.fornecedor} no valor de ${fmtBRL(igual.valor_total)}${igual.data_compra ? ` em ${fmtDate(igual.data_compra)}` : ""} nesta solicitação. Registrar outra compra igual mesmo assim?`)) return;
+    }
     const { error } = compra
       ? await supabase.from("compras").update(payload).eq("id", compra.id)
       : await supabase.from("compras").insert(payload);

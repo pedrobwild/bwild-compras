@@ -113,3 +113,14 @@ Calculado a cada consulta, no fuso de São Paulo (`public.hoje_sp()`); não depe
 - Fila ordenada por `data_necessaria`, sem data no final. Atrasos continuam vindo da view existente: `guard_aprovacao`, `sync_status_compras` e `painel_solicitacoes` não foram alterados.
 - `useRecursosBanco` esconde o recurso quando faltam os campos. Leitura complementar paginada; ações de abrir/copiar disponíveis na fila e no detalhe.
 - Testes transacionais de banco em `docs/sql/testes_pagamentos.sql`, sem dados persistidos; testes de validação e diálogo junto aos arquivos do recurso.
+
+## Prazo do fornecedor e valores previstos (27/11/2026)
+
+Script: `docs/sql/20261127_prazo_fornecedor_previstos.sql` (aplicado no Supabase conectado). Teste revertido: `docs/sql/testes_prazo_previstos.sql`.
+
+- `solicitacoes` ganhou `prazo_fornecedor_dias` (0–365), `fornecedor_previsto`, `valor_estimado` e `local_entrega_previsto`, validados pelo gatilho `solicitacoes_calcular_prazo`.
+- O mesmo gatilho calcula `prazo_compra = data_necessaria − prazo_fornecedor_dias` (dias corridos) sempre que uma das duas muda. Sem prazo do fornecedor, o `prazo_compra` existente é mantido. As regras de atraso continuam lendo `prazo_compra`.
+- Solicitações antigas com as duas datas receberam o prazo do fornecedor pela diferença entre elas (187 linhas), sem mudar `prazo_compra` nem `updated_at`.
+- `painel_solicitacoes` manteve todas as colunas e acrescentou `fornecedor_exibicao`, `valor_exibicao`, `local_exibicao` e `previsao_exibicao`, cada um com a coluna `*_origem` (`compra`, `cotacao` ou `solicitacao`). A ordem é: compra registrada, cotação escolhida, dados da solicitação. A previsão usa a compra (inclusive já entregue) e, sem ela, a data na obra. Também traz `qtd_compras`, `data_compra_min` e `cotacao_prazo_dias`.
+- `guard_aprovacao`, `sync_status_compras` e RLS não foram alterados.
+- O bloco "Gasto por semana" do painel é calculado na tela a partir da view e das compras desde a segunda-feira atual (semanas de segunda a domingo, fuso de São Paulo).

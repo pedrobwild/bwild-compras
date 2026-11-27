@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calcularComprarAte, diferencaDias, hojeSP, lerPrazoDias, prazoVencido } from "./prazos";
+import { calcularComprarAte, devePerguntarPrazo, diferencaDias, hojeSP, lerPrazoDias, prazoVencido } from "./prazos";
 
 describe("Comprar até = data na obra − prazo do fornecedor (dias corridos)", () => {
   it("subtrai os dias corridos, atravessando mês e ano", () => {
@@ -42,5 +42,17 @@ describe("Aviso de prazo vencido", () => {
     // 01:30 UTC do dia 28 ainda é dia 27 em São Paulo (UTC−3)
     expect(hojeSP(new Date("2026-11-28T01:30:00Z"))).toBe("2026-11-27");
     expect(hojeSP(new Date("2026-11-28T03:30:00Z"))).toBe("2026-11-28");
+  });
+});
+
+describe("Cotação escolhida com outro prazo", () => {
+  it("pergunta quando o prazo da cotação é diferente do informado", () => {
+    expect(devePerguntarPrazo(10, 15)).toBe(true);
+    expect(devePerguntarPrazo(null, 7)).toBe(true);
+  });
+  it("não pergunta quando é igual ou a cotação não tem prazo", () => {
+    expect(devePerguntarPrazo(10, 10)).toBe(false);
+    expect(devePerguntarPrazo(10, null)).toBe(false);
+    expect(devePerguntarPrazo(10, 400)).toBe(false);
   });
 });
