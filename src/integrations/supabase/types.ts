@@ -335,6 +335,7 @@ export type Database = {
           finalidade: string
           id: string
           nome_arquivo: string
+          pagamento_id: string | null
           solicitacao_id: string
           storage_path: string
           tamanho_bytes: number | null
@@ -346,6 +347,7 @@ export type Database = {
           finalidade?: string
           id?: string
           nome_arquivo: string
+          pagamento_id?: string | null
           solicitacao_id: string
           storage_path: string
           tamanho_bytes?: number | null
@@ -357,12 +359,20 @@ export type Database = {
           finalidade?: string
           id?: string
           nome_arquivo?: string
+          pagamento_id?: string | null
           solicitacao_id?: string
           storage_path?: string
           tamanho_bytes?: number | null
           tipo_mime?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "anexos_pagamento_fk"
+            columns: ["pagamento_id", "solicitacao_id"]
+            isOneToOne: false
+            referencedRelation: "solicitacao_pagamentos"
+            referencedColumns: ["id", "solicitacao_id"]
+          },
           {
             foreignKeyName: "solicitacao_anexos_solicitacao_id_fkey"
             columns: ["solicitacao_id"]
@@ -432,6 +442,7 @@ export type Database = {
           link_referencia: string | null
           observacao: string | null
           origem: string
+          pagamento_id: string | null
           quantidade: number
           referencia_projeto: string | null
           solicitacao_id: string
@@ -447,6 +458,7 @@ export type Database = {
           link_referencia?: string | null
           observacao?: string | null
           origem?: string
+          pagamento_id?: string | null
           quantidade?: number
           referencia_projeto?: string | null
           solicitacao_id: string
@@ -462,12 +474,20 @@ export type Database = {
           link_referencia?: string | null
           observacao?: string | null
           origem?: string
+          pagamento_id?: string | null
           quantidade?: number
           referencia_projeto?: string | null
           solicitacao_id?: string
           unidade?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "itens_pagamento_fk"
+            columns: ["pagamento_id", "solicitacao_id"]
+            isOneToOne: false
+            referencedRelation: "solicitacao_pagamentos"
+            referencedColumns: ["id", "solicitacao_id"]
+          },
           {
             foreignKeyName: "solicitacao_itens_solicitacao_id_fkey"
             columns: ["solicitacao_id"]
@@ -477,6 +497,63 @@ export type Database = {
           },
           {
             foreignKeyName: "solicitacao_itens_solicitacao_id_fkey"
+            columns: ["solicitacao_id"]
+            isOneToOne: false
+            referencedRelation: "solicitacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      solicitacao_pagamentos: {
+        Row: {
+          codigo: string | null
+          created_at: string
+          criado_por: string | null
+          id: string
+          legado: boolean
+          link: string | null
+          observacao: string | null
+          onde_comprado: string
+          solicitacao_id: string
+          updated_at: string
+          valor: number | null
+        }
+        Insert: {
+          codigo?: string | null
+          created_at?: string
+          criado_por?: string | null
+          id?: string
+          legado?: boolean
+          link?: string | null
+          observacao?: string | null
+          onde_comprado: string
+          solicitacao_id: string
+          updated_at?: string
+          valor?: number | null
+        }
+        Update: {
+          codigo?: string | null
+          created_at?: string
+          criado_por?: string | null
+          id?: string
+          legado?: boolean
+          link?: string | null
+          observacao?: string | null
+          onde_comprado?: string
+          solicitacao_id?: string
+          updated_at?: string
+          valor?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitacao_pagamentos_solicitacao_id_fkey"
+            columns: ["solicitacao_id"]
+            isOneToOne: false
+            referencedRelation: "painel_solicitacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitacao_pagamentos_solicitacao_id_fkey"
             columns: ["solicitacao_id"]
             isOneToOne: false
             referencedRelation: "solicitacoes"
@@ -656,6 +733,15 @@ export type Database = {
           p_remover_anexos?: string[]
           p_solicitacao_id: string
           p_solicitar?: boolean
+        }
+        Returns: undefined
+      }
+      salvar_pagamentos: {
+        Args: {
+          p_pagamentos: Json
+          p_solicitacao_id: string
+          p_solicitar: boolean
+          p_versao: string
         }
         Returns: undefined
       }
