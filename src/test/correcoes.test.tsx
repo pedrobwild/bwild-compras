@@ -27,8 +27,8 @@ const db = vi.hoisted(() => {
     if (state.bancoCompleto) return null;
     if (tabela === "cotacao_anexos") return { code: "PGRST205", message: "Could not find the table 'public.cotacao_anexos' in the schema cache" };
     if (tabela === "solicitacoes" && /prazo_compra|data_compra_efetiva/.test(colunas)) return { code: "42703", message: `column solicitacoes.${colunas} does not exist` };
-    if (tabela === "solicitacoes" && /pagamento_link|pagamento_instrucoes/.test(colunas)) return { code: "42703", message: "column solicitacoes.pagamento_link does not exist" };
-    if (tabela === "solicitacao_anexos" && colunas === "finalidade") return { code: "42703", message: "column solicitacao_anexos.finalidade does not exist" };
+    if (tabela === "solicitacao_pagamentos") return { code: "PGRST205", message: "Could not find the table public.solicitacao_pagamentos" };
+    if (tabela === "solicitacao_anexos" && colunas.includes("finalidade")) return { code: "42703", message: "column solicitacao_anexos.finalidade does not exist" };
     if (filtros.some(([c, v]) => c === "status" && v === "cronograma_confirmado"))
       return { code: "22P02", message: 'invalid input value for enum status_solicitacao: "cronograma_confirmado"' };
     return null;

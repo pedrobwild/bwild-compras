@@ -16,7 +16,7 @@ export interface RecursosBanco {
   anexosCotacao: boolean;
   /** coluna solicitacoes.cliente_obra_id (script vincular_clientes.sql) */
   clienteObra: boolean;
-  /** dados de pagamento e finalidade dos anexos */
+  /** tabela de pagamentos múltiplos e vínculos de itens/boletos */
   pagamentos: boolean;
 }
 
@@ -37,13 +37,14 @@ export function useRecursosBanco(): RecursosBanco {
     staleTime: Infinity,
     retry: 2,
     queryFn: async (): Promise<RecursosBanco> => {
-      const [prazo, cronograma, anexos, cliente, pagamento, finalidade] = await Promise.all([
+      const [prazo, cronograma, anexos, cliente, pagamento, finalidade, itensPagamento] = await Promise.all([
         supabase.from("solicitacoes").select("prazo_compra").limit(1),
         supabase.from("solicitacoes").select("id").eq("status", "cronograma_confirmado").limit(1),
         supabase.from("cotacao_anexos").select("id").limit(1),
         supabase.from("solicitacoes").select("cliente_obra_id").limit(1),
-        supabase.from("solicitacoes").select("pagamento_link,pagamento_instrucoes").limit(1),
-        supabase.from("solicitacao_anexos").select("finalidade").limit(1),
+        supabase.from("solicitacao_pagamentos").select("id,onde_comprado,valor,link,codigo,observacao").limit(1),
+        supabase.from("solicitacao_anexos").select("finalidade,pagamento_id").limit(1),
+        supabase.from("solicitacao_itens").select("pagamento_id").limit(1),
       ]);
       // Só conta como existente quando a consulta funcionou. Outro erro (rede caiu, timeout) não decide nada:
       // a consulta falha, tenta de novo e, enquanto isso, os campos opcionais ficam escondidos.
@@ -57,7 +58,7 @@ export function useRecursosBanco(): RecursosBanco {
         cronograma: existe(cronograma.error, enumFalta),
         anexosCotacao: existe(anexos.error, tabelaFalta),
         clienteObra: existe(cliente.error, colunaFalta),
-        pagamentos: existe(pagamento.error, colunaFalta) && existe(finalidade.error, colunaFalta),
+        pagamentos: existe(pagamento.error, tabelaFalta) && existe(finalidade.error, colunaFalta) && existe(itensPagamento.error, colunaFalta),
       };
     },
   });

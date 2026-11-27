@@ -257,10 +257,11 @@ function Detalhe() {
         });
         if (eIt) throw eIt;
       }
-      let anexosCopiados = true;
+      // Boletos não são duplicados: continuam ligados ao pagamento no card original.
+      let anexosCopiados = !d.anexos.some((a) => a.finalidade === "pagamento");
       if (d.anexos.length) {
         const { error: eAn } = await supabase.from("solicitacao_anexos").insert(
-          criadas.flatMap((c) => d.anexos.map((a) => ({ solicitacao_id: c.id, nome_arquivo: a.nome_arquivo, storage_path: a.storage_path, tamanho_bytes: a.tamanho_bytes, tipo_mime: a.tipo_mime ?? null, ...(recursos.pagamentos ? { finalidade: a.finalidade ?? "geral" } : {}) }))),
+          criadas.flatMap((c) => d.anexos.filter((a) => a.finalidade !== "pagamento").map((a) => ({ solicitacao_id: c.id, nome_arquivo: a.nome_arquivo, storage_path: a.storage_path, tamanho_bytes: a.tamanho_bytes, tipo_mime: a.tipo_mime ?? null, ...(recursos.pagamentos ? { finalidade: a.finalidade ?? "geral" } : {}) }))),
         );
         if (eAn) {
           anexosCopiados = false;
