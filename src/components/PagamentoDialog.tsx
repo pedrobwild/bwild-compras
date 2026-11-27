@@ -80,7 +80,7 @@ export function PagamentoDialog({ id, solicitar, onClose, onSaved }: { id: strin
         <Button type="button" variant="outline" disabled={busy || pagamentos.length >= 100} onClick={() => setPagamentos((prev) => [...prev, novoPagamento()])}><Plus className="h-4 w-4" />Adicionar pagamento</Button>
         {faltam > 0 && <p role="status" className="border-l-2 border-accent pl-3 text-sm text-muted-foreground">{faltam} {faltam === 1 ? "item sem pagamento vinculado" : "itens sem pagamento vinculado"}. É possível continuar.</p>}
         {erro && <p role="alert" className="break-words text-sm text-destructive">{erro}</p>}
-        <DialogFooter className="sticky bottom-0 border-t bg-background py-3"><Button type="button" variant="outline" disabled={busy} onClick={fechar}>Cancelar</Button><Button type="submit" disabled={busy || !versao}>{busy ? "Salvando…" : solicitar ? "Solicitar pagamento" : "Salvar pagamentos"}</Button></DialogFooter>
+        <DialogFooter className="border-t bg-background py-3"><Button type="button" variant="outline" disabled={busy} onClick={fechar}>Cancelar</Button><Button type="submit" disabled={busy || !versao}>{busy ? "Salvando…" : solicitar ? "Solicitar pagamento" : "Salvar pagamentos"}</Button></DialogFooter>
       </form>}
     </DialogContent>
   </Dialog>;

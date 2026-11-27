@@ -88,6 +88,20 @@ Calculado a cada consulta, no fuso de São Paulo (`public.hoje_sp()`); não depe
 
 ## Dados e fila de pagamentos (27/11/2026)
 
+### Atualização: vários pagamentos por solicitação
+
+- Aplicada pelo chat em 27/11/2026 no Supabase externo `wrpqayrqaiekdycknhsp`, sem publicação do app. SQL completo em `docs/sql/20261127_pagamentos_multiplos.sql` e migrações registradas em `supabase/migrations/`.
+- Fonte de verdade: `solicitacao_pagamentos`, com `onde_comprado` obrigatório (até 200 caracteres), valor opcional não negativo, link HTTP/HTTPS até 1.000 caracteres, código até 1.000 e observação até 300. O app não lê mais as colunas antigas para pagamentos.
+- `solicitacao_itens.pagamento_id` permite vincular cada item a um único pagamento; a chave composta impede vincular item de outra solicitação. `solicitacao_anexos.pagamento_id` identifica o pagamento de cada boleto e mantém `finalidade = pagamento`.
+- Todos os logados consultam; Compras/Admin gerenciam em Aprovado ou Solicitação de pagamento. A função `salvar_pagamentos` salva pagamentos, vínculos, boletos e passagem numa transação, conferindo a versão da solicitação para recusar sobrescrita concorrente. Cada pagamento precisa de link, código ou boleto existente; não se pode retirar o último pagamento durante a etapa.
+- A transferência preserva conteúdo e referências antigas, sem atribuir valores ou itens. Usa o fornecedor escolhido, ou “Não informado (migrado)”. A conferência antes/depois encontrou zero solicitações com dados antigos e zero boletos de pagamento. Colunas antigas não foram apagadas.
+- O diálogo permite adicionar, editar e remover pagamentos e avisa sem bloquear quando há itens sem vínculo. Histórico registra autor e inclusão/alteração/remoção sem reproduzir link ou código.
+- A fila mantém uma linha por solicitação, com quantidade e soma dos valores informados; sem valor informado mostra “—”. Os pagamentos são expansíveis e a mesma lista aparece no detalhe. Calendário Na obra até inclui os dias inicial e final; ausência de data fica no final sem filtro.
+- `useRecursosBanco` detecta a tabela e os dois vínculos novos, escondendo o recurso enquanto faltarem. Boletos ficam no card original durante divisão; anexos gerais continuam sendo copiados.
+- Testes transacionais de pagamentos, boletos e migração passaram com reversão de todas as alterações: `testes_pagamentos.sql`, `testes_boletos_pagamento.sql`, `testes_migracao_pagamentos.sql`. Interface conferida com dados simulados em 320, 414, 1280 e 1536 px: calendário, expansão, dois pagamentos, bloqueio de item já vinculado, cópia e abertura de boleto; sem transbordamento. A sessão real não pôde ser emitida pelo Supabase externo; validação autenticada integral permanece pendente.
+
+### Modelo anterior (mantido apenas como registro histórico)
+
 - Migrações aplicadas pelo chat no Supabase conectado `wrpqayrqaiekdycknhsp`; cópia do SQL em `docs/sql/20261127_pagamentos.sql`.
 - `solicitacoes.pagamento_link`: HTTP/HTTPS, até 1.000 caracteres. `pagamento_instrucoes`: até 500 caracteres. Não substituem o link de produto do item.
 - `solicitacao_anexos.finalidade`: `geral` para anexos existentes ou `pagamento` para boletos. Mesmo bucket privado, PDF/PNG/JPG/JPEG até 50 MB. O arquivo deve existir no armazenamento antes de registrar o boleto.
