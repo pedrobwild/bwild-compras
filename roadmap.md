@@ -1,6 +1,9 @@
 # Vários pagamentos por solicitação
-- [ ] Aprovar o plano; não alterar código ou banco antes do ok do usuário.
-- [ ] Após aprovação: migrar o modelo, adaptar diálogo/fila/detalhe, incluir filtro por Na obra até e validar os testes; não publicar automaticamente.
+- [x] Plano aprovado; estrutura aplicada no Supabase conectado, sem dados antigos para transferir e com colunas antigas preservadas.
+- [x] Diálogo com vários pagamentos, fila expansível, detalhe e filtro Na obra até; 126 testes automáticos e testes de banco revertidos passaram.
+- [x] Conferência visual com dados simulados em 320, 414, 1280 e 1536 px, sem transbordamento.
+- [ ] Validar o fluxo com sessão real: o Supabase externo não permite emitir sessão de teste por aqui.
+- [ ] Publicar: aguardando autorização.
 
 # Pagamentos
 - [x] Implementar dados de pagamento, diálogo compartilhado, fila Pagamentos, migração aplicada, documentação e testes; 116 testes automáticos passaram e testes transacionais de banco não deixaram alterações.
