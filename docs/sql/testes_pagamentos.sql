@@ -39,7 +39,8 @@ BEGIN
   END LOOP;
   UPDATE public.solicitacao_pagamentos SET link='',codigo=repeat('x',1000),observacao=repeat('o',300) WHERE id=pid;
   bloqueou:=false;
-  BEGIN PERFORM public.salvar_pagamentos(sid,dados,false,versao); EXCEPTION WHEN raise_exception THEN IF SQLERRM NOT LIKE 'A solicitação foi alterada%' THEN RAISE; END IF; bloqueou:=true; END;
+  -- now() é fixo na transação; a versão anterior simula outra aba salva antes.
+  BEGIN PERFORM public.salvar_pagamentos(sid,dados,false,versao - interval '1 second'); EXCEPTION WHEN raise_exception THEN IF SQLERRM NOT LIKE 'A solicitação foi alterada%' THEN RAISE; END IF; bloqueou:=true; END;
   IF NOT bloqueou THEN RAISE EXCEPTION 'Falha: versão antiga sobrescreveu edição.'; END IF;
   bloqueou:=false;
   BEGIN INSERT INTO public.solicitacao_anexos(solicitacao_id,pagamento_id,nome_arquivo,storage_path,tamanho_bytes,tipo_mime,finalidade,enviado_por) VALUES(sid,pid,'boleto.pdf',sid::text||'/pagamentos/'||pid::text||'/nao-enviado.pdf',10,'application/pdf','pagamento',comprador);
