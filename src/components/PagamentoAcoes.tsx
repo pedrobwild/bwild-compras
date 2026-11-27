@@ -9,7 +9,7 @@ export function PagamentoAcoes({ link, instrucoes, boletos, compact = false }: {
   link: string | null; instrucoes: string | null; boletos: BoletoPagamento[]; compact?: boolean;
 }) {
   const copiar = async (texto: string, nome: string) => {
-    try { await navigator.clipboard.writeText(texto); toast.success(`${nome} copiado${nome === "Link" ? "" : "s"}`); }
+    try { await navigator.clipboard.writeText(texto); toast.success(nome === "Link" ? "Link copiado" : "Instruções copiadas"); }
     catch { toast.error("Não foi possível copiar. Tente novamente."); }
   };
   const abrir = (b: BoletoPagamento) => { void abrirArquivo(b.storage_path).catch(() => toast.error("Não foi possível abrir o boleto. Tente novamente.")); };

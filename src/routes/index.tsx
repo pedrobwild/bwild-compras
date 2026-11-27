@@ -7,6 +7,8 @@ export const Route = createFileRoute("/")({
       { name: "description", content: "Painel de solicitações de compras das obras Bwild." },
       { property: "og:title", content: "Bwild Compras" },
       { property: "og:description", content: "Painel de solicitações de compras das obras Bwild." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   beforeLoad: () => {
