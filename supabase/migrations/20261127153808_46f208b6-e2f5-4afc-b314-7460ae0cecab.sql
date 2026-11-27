@@ -1,0 +1,1 @@
+REVOKE ALL ON public.solicitacao_pagamentos FROM anon, PUBLIC;
