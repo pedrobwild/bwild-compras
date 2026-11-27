@@ -6,6 +6,13 @@ import type { DateRange } from "react-day-picker";
 export function linkPagamentoValido(valor: string): boolean {
   try { const url = new URL(valor); return ["http:", "https:"].includes(url.protocol) && valor.length <= 1000 && /^https?:\/\/\S+$/i.test(valor); } catch { return false; }
 }
+/** Código Pix copia-e-cola (começa com 000201) ou linha digitável de boleto (44 a 48 dígitos). */
+export function pareceCodigoPagamento(valor: string): boolean {
+  const v = valor.trim();
+  if (!v || /^https?:\/\//i.test(v)) return false;
+  if (/^000201/.test(v)) return true;
+  return /^[\d.\s-]+$/.test(v) && v.replace(/\D/g, "").length >= 44 && v.replace(/\D/g, "").length <= 48;
+}
 export const dadosPagamentoSchema = z.object({
   onde_comprado: z.string().trim().min(1, "Informe onde foi comprado.").max(200, "Onde foi comprado deve ter até 200 caracteres."),
   valor: z.number().finite().nonnegative("O valor não pode ser negativo.").nullable(),

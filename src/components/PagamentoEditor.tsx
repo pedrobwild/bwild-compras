@@ -4,7 +4,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { validarBoleto, type BoletoPagamento, type ItemPagamento } from "@/lib/pagamentos";
+import { pareceCodigoPagamento, validarBoleto, type BoletoPagamento, type ItemPagamento } from "@/lib/pagamentos";
 
 export interface PagamentoRascunho {
   id: string; onde_comprado: string; valorTexto: string; link: string; codigo: string; observacao: string;
@@ -24,7 +24,11 @@ export function PagamentoEditor({ pagamento: p, indice, itens, ocupados, busy, u
       <div className="space-y-1.5"><Label htmlFor={field("onde")}>Onde foi comprado *</Label><Input id={field("onde")} value={p.onde_comprado} maxLength={200} onChange={(e) => onChange({ ...p, onde_comprado: e.target.value })} /></div>
       <div className="space-y-1.5"><Label htmlFor={field("valor")}>Valor (opcional)</Label><Input id={field("valor")} inputMode="decimal" value={p.valorTexto} placeholder="R$" onChange={(e) => onChange({ ...p, valorTexto: e.target.value })} /></div>
     </div>
-    <div className="space-y-1.5"><Label htmlFor={field("link")}>Link de pagamento</Label><Input id={field("link")} inputMode="url" placeholder="https://" maxLength={1000} value={p.link} onChange={(e) => onChange({ ...p, link: e.target.value })} /></div>
+    <div className="space-y-1.5"><Label htmlFor={field("link")}>Link de pagamento</Label><Input id={field("link")} inputMode="url" placeholder="https://" maxLength={1000} value={p.link} onChange={(e) => {
+      const v = e.target.value;
+      if (pareceCodigoPagamento(v) && !p.codigo.trim()) onChange({ ...p, link: "", codigo: v.trim() });
+      else onChange({ ...p, link: v });
+    }} />{p.link.trim() && !/^https?:\/\//i.test(p.link.trim()) && <p className="text-xs text-destructive">Este campo aceita só links (https://). Código Pix ou de boleto vai no campo abaixo.</p>}</div>
     <div className="space-y-1.5"><Label htmlFor={field("codigo")}>Código Pix ou linha digitável</Label><Textarea id={field("codigo")} rows={3} maxLength={1000} value={p.codigo} onChange={(e) => onChange({ ...p, codigo: e.target.value })} /></div>
     <div className="space-y-1.5"><Label htmlFor={field("observacao")}>Observação</Label><Textarea id={field("observacao")} rows={2} maxLength={300} value={p.observacao} onChange={(e) => onChange({ ...p, observacao: e.target.value })} /></div>
     <div className="space-y-1.5"><Label htmlFor={field("boletos")}>Boletos</Label><Input id={field("boletos")} className="min-h-11" type="file" accept=".pdf,.png,.jpg,.jpeg" multiple onChange={(e) => {

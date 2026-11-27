@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dadosPagamentoSchema, linkPagamentoValido, ordenarFilaPagamentos, temMeioPagamento, validarBoleto, salvarPagamentosSchema, totalPagamentos, itensSemPagamento } from "@/lib/pagamentos";
+import { dadosPagamentoSchema, linkPagamentoValido, ordenarFilaPagamentos, temMeioPagamento, validarBoleto, salvarPagamentosSchema, totalPagamentos, itensSemPagamento, pareceCodigoPagamento } from "@/lib/pagamentos";
 
 describe("Dados de pagamento", () => {
   it.each(["https://pagamento.example/boleto", "http://pagamento.example/pix"])("aceita %s", (url) => {
@@ -96,4 +96,11 @@ describe("Pagamentos múltiplos", () => {
     expect(ordenarFilaPagamentos(rows, { from: new Date(2026, 10, 27), to: new Date(2026, 10, 28) }).map((r) => r.id)).toEqual(["a", "b"]);
     expect(ordenarFilaPagamentos(rows).map((r) => r.id)).toEqual(["a", "b", "c"]);
   });
+});
+
+describe("Código colado no campo de link", () => {
+  it("reconhece Pix copia-e-cola", () => expect(pareceCodigoPagamento("00020126540014br.gov.bcb.pix0132pix_marketplace@mercadolibre.com5204")).toBe(true));
+  it("reconhece linha digitável de boleto", () => expect(pareceCodigoPagamento("23793.38128 60000.000003 00000.000400 1 84340000010000")).toBe(true));
+  it("não confunde link com código", () => expect(pareceCodigoPagamento("https://pagar.exemplo.com/000201")).toBe(false));
+  it("não trata texto comum como código", () => expect(pareceCodigoPagamento("PIX")).toBe(false));
 });
