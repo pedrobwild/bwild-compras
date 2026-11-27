@@ -332,6 +332,7 @@ export type Database = {
         Row: {
           created_at: string
           enviado_por: string
+          finalidade: string
           id: string
           nome_arquivo: string
           solicitacao_id: string
@@ -342,6 +343,7 @@ export type Database = {
         Insert: {
           created_at?: string
           enviado_por?: string
+          finalidade?: string
           id?: string
           nome_arquivo: string
           solicitacao_id: string
@@ -352,6 +354,7 @@ export type Database = {
         Update: {
           created_at?: string
           enviado_por?: string
+          finalidade?: string
           id?: string
           nome_arquivo?: string
           solicitacao_id?: string
@@ -495,6 +498,8 @@ export type Database = {
           id: string
           motivo_cancelamento: string | null
           numero: number
+          pagamento_instrucoes: string | null
+          pagamento_link: string | null
           prazo_compra: string | null
           prazo_obra: string | null
           prioridade: Database["public"]["Enums"]["prioridade_solicitacao"]
@@ -518,6 +523,8 @@ export type Database = {
           id?: string
           motivo_cancelamento?: string | null
           numero?: never
+          pagamento_instrucoes?: string | null
+          pagamento_link?: string | null
           prazo_compra?: string | null
           prazo_obra?: string | null
           prioridade?: Database["public"]["Enums"]["prioridade_solicitacao"]
@@ -541,6 +548,8 @@ export type Database = {
           id?: string
           motivo_cancelamento?: string | null
           numero?: never
+          pagamento_instrucoes?: string | null
+          pagamento_link?: string | null
           prazo_compra?: string | null
           prazo_obra?: string | null
           prioridade?: Database["public"]["Enums"]["prioridade_solicitacao"]
@@ -639,6 +648,16 @@ export type Database = {
       label_status: {
         Args: { s: Database["public"]["Enums"]["status_solicitacao"] }
         Returns: string
+      }
+      salvar_pagamento: {
+        Args: {
+          p_instrucoes: string
+          p_link: string
+          p_remover_anexos?: string[]
+          p_solicitacao_id: string
+          p_solicitar?: boolean
+        }
+        Returns: undefined
       }
     }
     Enums: {
