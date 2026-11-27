@@ -12,6 +12,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { STATUS, statusDisponiveis, fmtBRL, fmtDate, type PainelRow, type Status } from "@/lib/format";
+import { PagamentoDialog } from "@/components/PagamentoDialog";
 
 export const Route = createFileRoute("/_authenticated/aprovacoes")({
   head: () => ({
@@ -86,6 +87,7 @@ function Detalhe({ r, isAdmin }: { r: PainelRow; isAdmin: boolean }) {
   const qc = useQueryClient();
   const recursos = useRecursosBanco();
   const [salvando, setSalvando] = useState(false);
+  const [pagamentoOpen, setPagamentoOpen] = useState(false);
 
   const cot = useQuery({
     queryKey: ["aprov-cotacao", r.id],
@@ -104,6 +106,11 @@ function Detalhe({ r, isAdmin }: { r: PainelRow; isAdmin: boolean }) {
   });
 
   const mudar = async (status: Status, msg: string) => {
+    if (status === "solicitacao_pagamento" && r.status !== status) {
+      if (!recursos.pagamentos) return void toast.error("Os dados de pagamento ainda não estão disponíveis.");
+      if (r.status !== "aprovada") return void toast.error("A solicitação de pagamento só pode ser pedida depois de Aprovado.");
+      setPagamentoOpen(true); return;
+    }
     setSalvando(true);
     const { error } = await supabase.from("solicitacoes").update({ status }).eq("id", r.id);
     setSalvando(false);
@@ -118,6 +125,7 @@ function Detalhe({ r, isAdmin }: { r: PainelRow; isAdmin: boolean }) {
 
   return (
     <Card className="space-y-4 p-4">
+      {pagamentoOpen && <PagamentoDialog id={r.id} solicitar onClose={() => setPagamentoOpen(false)} onSaved={() => { qc.invalidateQueries({ queryKey: ["painel"] }); qc.invalidateQueries({ queryKey: ["aprov-historico", r.id] }); }} />}
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <div className="text-xs text-muted-foreground">{r.codigo} · {r.cliente}</div>

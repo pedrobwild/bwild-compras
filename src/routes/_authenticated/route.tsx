@@ -5,6 +5,7 @@ import { LayoutDashboard, PlusCircle, KanbanSquare, Users, LogOut, Building2, Wa
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, useRole } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
+import { useRecursosBanco } from "@/hooks/useRecursos";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -18,6 +19,7 @@ export const Route = createFileRoute("/_authenticated")({
 function AppLayout() {
   const { nome, user, session, loading } = useAuth();
   const { isCompras, isAdmin, label } = useRole();
+  const recursos = useRecursosBanco();
   const qc = useQueryClient();
   const navigate = useNavigate();
 
@@ -36,6 +38,7 @@ function AppLayout() {
     { to: "/compras", label: "Fila", long: "Fila de Compras", icon: KanbanSquare, show: isCompras },
     { to: "/cotacoes", label: "Cotações", icon: FileText, show: isCompras },
     { to: "/aprovacoes", label: "Aprov.", long: "Aprovações", icon: ShieldCheck, show: isCompras },
+    { to: "/pagamentos", label: "Pagtos.", long: "Pagamentos", icon: Wallet, show: recursos.pagamentos },
     { to: "/fornecedores", label: "Fornec.", long: "Fornecedores", icon: Truck, show: isCompras },
     { to: "/clientes", label: "Clientes", long: "Clientes e obras", icon: Building2, show: true },
     { to: "/obras", label: "Obras", long: "Custos por obra", icon: Wallet, show: isCompras },
@@ -95,12 +98,12 @@ function AppLayout() {
         </div>
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t bg-card lg:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 flex overflow-x-auto border-t bg-card lg:hidden" aria-label="Menu principal">
         {items.map((i) => (
           <Link
             key={i.to}
             to={i.to}
-            className="flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] text-muted-foreground"
+            className="flex min-h-14 min-w-16 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] text-muted-foreground"
             activeProps={{ className: "text-foreground font-medium" }}
           >
             {({ isActive }) => (

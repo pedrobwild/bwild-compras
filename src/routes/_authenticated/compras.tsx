@@ -22,6 +22,7 @@ import { cardPosCompra, previsaoChegada } from "@/lib/kanban-card";
 import { OrdenacaoSelect } from "@/components/OrdenacaoSelect";
 import { ordenarRegistros, type Ordenacao } from "@/lib/ordenacao";
 import { noPeriodo } from "@/lib/periodo";
+import { PagamentoDialog } from "@/components/PagamentoDialog";
 
 export const Route = createFileRoute("/_authenticated/compras")({
   head: () => ({
@@ -62,6 +63,7 @@ function Fila() {
   const [criacaoRange, setCriacaoRange] = useState<DateRange | undefined>();
   const [compraRange, setCompraRange] = useState<DateRange | undefined>();
   const [entregaRange, setEntregaRange] = useState<DateRange | undefined>();
+  const [pagamentoId, setPagamentoId] = useState<string | null>(null);
 
   // Datas de compra/entrega não existem na view do painel: busca direto na tabela compras.
   // Chave dentro de "painel" para o tempo real também atualizar estes filtros; paginado (o banco devolve no máx. 1000 por vez).
@@ -107,6 +109,11 @@ function Fila() {
       return void toast.error("Só é possível aprovar uma solicitação que está em Aprovação.");
     if (status === "solicitacao_pagamento" && row.status !== "aprovada" && row.status !== "solicitacao_pagamento")
       return void toast.error("A solicitação de pagamento só pode ser pedida depois de Aprovado.");
+    if (status === "solicitacao_pagamento") {
+      if (!recursos.pagamentos) return void toast.error("Os dados de pagamento ainda não estão disponíveis.");
+      setPagamentoId(id);
+      return;
+    }
     if (["comprada", "entregue_parcial", "entregue"].includes(status) && !["aprovada", "solicitacao_pagamento", "comprada", "entregue_parcial", "entregue"].includes(row.status))
       return void toast.error("A compra só pode ser efetivada depois de Aprovado. Abra a solicitação e use \"Efetivar pedido\".");
     const { error: err } = await supabase.from("solicitacoes").update({ status }).eq("id", id);
@@ -139,6 +146,7 @@ function Fila() {
 
   return (
     <div className="space-y-5">
+      {pagamentoId && <PagamentoDialog id={pagamentoId} solicitar onClose={() => setPagamentoId(null)} onSaved={() => qc.invalidateQueries({ queryKey: ["painel"] })} />}
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Fila de Compras</h1>
         <p className="text-sm text-muted-foreground">Entregues: últimos 30 dias.</p>

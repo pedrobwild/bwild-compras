@@ -85,3 +85,17 @@ Calculado a cada consulta, no fuso de São Paulo (`public.hoje_sp()`); não depe
 - `guard_aprovacao`: voltar de Solicitação de pagamento para Aprovado não conta como nova aprovação.
 - `painel_solicitacoes`: Solicitação de pagamento conta como "antes da compra" no atraso de compra.
 - Registrar uma compra nessa etapa leva a solicitação para Comprado (regra de `sync_status_compras`, sem mudança).
+
+## Dados e fila de pagamentos (27/11/2026)
+
+- Migrações aplicadas pelo chat no Supabase conectado `wrpqayrqaiekdycknhsp`; cópia do SQL em `docs/sql/20261127_pagamentos.sql`.
+- `solicitacoes.pagamento_link`: HTTP/HTTPS, até 1.000 caracteres. `pagamento_instrucoes`: até 500 caracteres. Não substituem o link de produto do item.
+- `solicitacao_anexos.finalidade`: `geral` para anexos existentes ou `pagamento` para boletos. Mesmo bucket privado, PDF/PNG/JPG/JPEG até 50 MB. O arquivo deve existir no armazenamento antes de registrar o boleto.
+- Ao passar de Aprovado para Solicitação de pagamento, o diálogo exige link, instruções ou boleto enviado. Cancelar não muda a etapa. A cotação escolhida aparece apenas para conferência.
+- Compras/Admin informa os dados ao solicitar pagamento e pode editá-los durante essa etapa; todos os logados consultam na solicitação e em **Pagamentos** (`/pagamentos`). Solicitações antigas sem dados não são alteradas retroativamente.
+- A função `salvar_pagamento` grava os campos, a passagem e as remoções de metadados numa transação, com RLS. Gatilhos específicos validam permissões, limites e impedem retirar o último meio de pagamento. Adições de boletos ocorrem após upload; falhas não avançam a etapa.
+- Histórico automático registra autor e alteração, sem reproduzir links, chaves ou instruções no texto. Funções de gatilho não são executáveis diretamente pelos papéis público ou autenticado.
+- Boletos referenciados não podem ser apagados diretamente do armazenamento. Remover o boleto pela edição elimina a referência, sem apagar arquivos que possam ser compartilhados por cards divididos.
+- Fila ordenada por `data_necessaria`, sem data no final. Atrasos continuam vindo da view existente: `guard_aprovacao`, `sync_status_compras` e `painel_solicitacoes` não foram alterados.
+- `useRecursosBanco` esconde o recurso quando faltam os campos. Leitura complementar paginada; ações de abrir/copiar disponíveis na fila e no detalhe.
+- Testes transacionais de banco em `docs/sql/testes_pagamentos.sql`, sem dados persistidos; testes de validação e diálogo junto aos arquivos do recurso.

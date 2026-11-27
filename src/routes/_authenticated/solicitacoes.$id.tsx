@@ -19,6 +19,8 @@ import { RevisaoIA } from "@/components/RevisaoIA";
 import { ResponsavelCompra } from "@/components/ResponsavelCompra";
 import { TituloSolicitacao } from "@/components/TituloSolicitacao";
 import { LinkReferenciaItem } from "@/components/LinkReferenciaItem";
+import { PagamentoDialog } from "@/components/PagamentoDialog";
+import { PagamentoResumo } from "@/components/PagamentoResumo";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -56,7 +58,7 @@ interface Solicitacao {
   area_m2?: number | null; prazo_obra?: string | null; extracao_id?: string | null;
 }
 interface Item { id: string; descricao: string; quantidade: number; unidade: string; ambiente: string | null; referencia_projeto: string | null; observacao: string | null; categoria?: string | null; especificacao?: string | null; link_referencia?: string | null; origem?: string | null }
-interface Anexo { id: string; nome_arquivo: string; storage_path: string; tamanho_bytes: number | null; tipo_mime?: string | null; created_at: string }
+interface Anexo { id: string; nome_arquivo: string; storage_path: string; tamanho_bytes: number | null; tipo_mime?: string | null; created_at: string; finalidade?: string }
 interface Evento { id: string; tipo: string; descricao: string | null; usuario_id: string | null; created_at: string }
 
 const STEPS: { key: Status; label: string }[] = [
@@ -81,6 +83,7 @@ function Detalhe() {
   const navigate = useNavigate();
   const recursos = useRecursosBanco();
   const [dividindo, setDividindo] = useState(false);
+  const [pagamentoOpen, setPagamentoOpen] = useState(false);
 
   // Atraso calculado no banco (view painel_solicitacoes); chave "painel" para atualizar junto com o painel
   const atrasoQ = useQuery({
@@ -181,6 +184,12 @@ function Detalhe() {
 
   /** Grava na solicitação. Devolve false quando não salvou (erro ou sem permissão). */
   const update = async (patch: Partial<Solicitacao>, msg: string): Promise<boolean> => {
+    if (patch.status === "solicitacao_pagamento" && s.status !== "solicitacao_pagamento") {
+      if (!recursos.pagamentos) { toast.error("Os dados de pagamento ainda não estão disponíveis."); return false; }
+      if (s.status !== "aprovada") { toast.error("A solicitação de pagamento só pode ser pedida depois de Aprovado."); return false; }
+      setPagamentoOpen(true);
+      return false;
+    }
     const novoStatus = patch.status ?? s.status;
     const novaData = "data_necessaria" in patch ? patch.data_necessaria : s.data_necessaria;
     if (novoStatus === "cronograma_confirmado" && !novaData) {
@@ -251,7 +260,7 @@ function Detalhe() {
       let anexosCopiados = true;
       if (d.anexos.length) {
         const { error: eAn } = await supabase.from("solicitacao_anexos").insert(
-          criadas.flatMap((c) => d.anexos.map((a) => ({ solicitacao_id: c.id, nome_arquivo: a.nome_arquivo, storage_path: a.storage_path, tamanho_bytes: a.tamanho_bytes, tipo_mime: a.tipo_mime ?? null }))),
+          criadas.flatMap((c) => d.anexos.map((a) => ({ solicitacao_id: c.id, nome_arquivo: a.nome_arquivo, storage_path: a.storage_path, tamanho_bytes: a.tamanho_bytes, tipo_mime: a.tipo_mime ?? null, ...(recursos.pagamentos ? { finalidade: a.finalidade ?? "geral" } : {}) }))),
         );
         if (eAn) {
           anexosCopiados = false;
@@ -345,6 +354,9 @@ function Detalhe() {
                   Devolver para cotação
                 </Button>
               </>
+            )}
+            {isCompras && s.status === "aprovada" && (
+              <Button variant="outline" disabled={!recursos.pagamentos} onClick={() => setPagamentoOpen(true)}><Send className="h-4 w-4" />Solicitar pagamento</Button>
             )}
             {isCompras && s.status === "aprovada" && (
               <Button onClick={() => { setEditCompra(null); setCompraOpen(true); }}>
@@ -443,6 +455,9 @@ function Detalhe() {
           </div>
         )}
       </div>
+
+      {recursos.pagamentos && <PagamentoResumo id={id} editavel={isCompras && s.status === "solicitacao_pagamento"} onEdit={() => setPagamentoOpen(true)} />}
+      {pagamentoOpen && <PagamentoDialog id={id} solicitar={s.status === "aprovada"} onClose={() => setPagamentoOpen(false)} onSaved={refresh} />}
 
       <Tabs defaultValue="itens">
         <TabsList className="grid w-full grid-cols-5 md:inline-flex md:w-auto">
@@ -720,7 +735,7 @@ function AnexosTab({ anexos, solicitacaoId, onChange, podeImportar }: { anexos: 
                 <p className="truncate text-sm font-medium">{a.nome_arquivo}</p>
                 <p className="text-xs text-muted-foreground">{fmtBytes(a.tamanho_bytes)} · {fmtDate(a.created_at)}</p>
               </div>
-              {podeImportar && /\.pdf$/i.test(a.nome_arquivo) && (
+              {podeImportar && a.finalidade !== "pagamento" && /\.pdf$/i.test(a.nome_arquivo) && (
                 <Button size="sm" variant="outline" disabled={leitura.ocupado} onClick={() => importar(a)}><FileSearch className="h-4 w-4" /><span className="hidden sm:inline">Importar itens deste projeto</span></Button>
               )}
               <Button size="sm" variant="ghost" onClick={() => open(a, false)}><ExternalLink className="h-4 w-4" /><span className="hidden sm:inline">Abrir</span></Button>

@@ -33,7 +33,7 @@ export const gravarPagamento = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => dadosPagamentoSchema.extend({ id: z.string().uuid(), solicitar: z.boolean(), remover: z.array(z.string().uuid()).max(100) }).parse(d))
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase.rpc("salvar_pagamento", {
-      p_solicitacao_id: data.id, p_link: data.link || null, p_instrucoes: data.instrucoes || null,
+      p_solicitacao_id: data.id, p_link: data.link, p_instrucoes: data.instrucoes,
       p_solicitar: data.solicitar, p_remover_anexos: data.remover,
     });
     return error ? { ok: false, erro: error.message } : { ok: true, erro: null };
