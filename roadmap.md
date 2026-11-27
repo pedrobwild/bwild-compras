@@ -1,3 +1,7 @@
+# Vários pagamentos por solicitação
+- [ ] Aprovar o plano; não alterar código ou banco antes do ok do usuário.
+- [ ] Após aprovação: migrar o modelo, adaptar diálogo/fila/detalhe, incluir filtro por Na obra até e validar os testes; não publicar automaticamente.
+
 # Pagamentos
 - [x] Implementar dados de pagamento, diálogo compartilhado, fila Pagamentos, migração aplicada, documentação e testes; 116 testes automáticos passaram e testes transacionais de banco não deixaram alterações.
 - [x] Conferir fila e diálogo com dados simulados em 320, 414, 1280 e 1536 px, copiar link, abrir boleto e bloquear passagem vazia, sem transbordamento.
