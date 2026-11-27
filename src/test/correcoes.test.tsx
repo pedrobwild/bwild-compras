@@ -27,6 +27,8 @@ const db = vi.hoisted(() => {
     if (state.bancoCompleto) return null;
     if (tabela === "cotacao_anexos") return { code: "PGRST205", message: "Could not find the table 'public.cotacao_anexos' in the schema cache" };
     if (tabela === "solicitacoes" && /prazo_compra|data_compra_efetiva/.test(colunas)) return { code: "42703", message: `column solicitacoes.${colunas} does not exist` };
+    if (tabela === "solicitacoes" && /pagamento_link|pagamento_instrucoes/.test(colunas)) return { code: "42703", message: "column solicitacoes.pagamento_link does not exist" };
+    if (tabela === "solicitacao_anexos" && colunas === "finalidade") return { code: "42703", message: "column solicitacao_anexos.finalidade does not exist" };
     if (filtros.some(([c, v]) => c === "status" && v === "cronograma_confirmado"))
       return { code: "22P02", message: 'invalid input value for enum status_solicitacao: "cronograma_confirmado"' };
     return null;
@@ -175,7 +177,7 @@ describe("Detalhe da solicitação", () => {
     const qc = renderDetalhe();
     await screen.findByText("Tinta para a sala");
     await waitFor(() => expect(qc.getQueryData(["recursos-banco"])).toBeDefined());
-    expect(qc.getQueryData(["recursos-banco"])).toEqual({ prazoCompra: false, cronograma: false, anexosCotacao: false, clienteObra: true });
+    expect(qc.getQueryData(["recursos-banco"])).toEqual({ prazoCompra: false, cronograma: false, anexosCotacao: false, clienteObra: true, pagamentos: false });
     expect(screen.queryByText("Prazo para efetivar compra")).not.toBeInTheDocument();
     expect(screen.queryByText("Cronograma confirmado")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Prazo para o item chegar")).toBeInTheDocument();

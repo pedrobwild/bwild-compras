@@ -249,7 +249,7 @@
     border-right: 1px solid var(--border);
   }
 
-  .pagamentos-table td { height: 6.5rem; }
+  .pagamentos-table td { height: 7rem; padding-block: 0.5rem; }
   .pagamentos-table :is(th, td):last-child { border-right: none; }
 
   .spreadsheet-table th,

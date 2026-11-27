@@ -105,7 +105,7 @@ export function PagamentosLista({ rows, dados }: { rows: PainelRow[]; dados: Dad
           <div><dt className="text-xs text-muted-foreground">Valor</dt><dd className="whitespace-nowrap tabular-nums">{d?.cotacao?.valor_total == null ? "—" : fmtBRL(d.cotacao.valor_total)}</dd></div>
           <div><dt className="text-xs text-muted-foreground">Condição de pagamento</dt><dd className="break-words">{d?.cotacao?.condicao_pagamento ?? "—"}</dd></div>
           <div><dt className="text-xs text-muted-foreground">Na obra até</dt><dd className="whitespace-nowrap tabular-nums">{fmtDate(r.data_necessaria)}</dd></div>
-          {r.atrasada && (r.dias_atraso ?? 0) > 0 && <div className="whitespace-nowrap text-destructive">{r.dias_atraso} dias de atraso</div>}
+          {r.atrasada && (r.dias_atraso ?? 0) > 0 && <div className="whitespace-nowrap text-destructive">{r.dias_atraso} {r.dias_atraso === 1 ? "dia" : "dias"} de atraso</div>}
         </dl>
         {d && temMeioPagamento(d.pagamento_link, d.pagamento_instrucoes, d.boletos.length) ? <PagamentoAcoes link={d.pagamento_link} instrucoes={d.pagamento_instrucoes} boletos={d.boletos} /> : <p className="text-sm text-muted-foreground">Dados de pagamento pendentes.</p>}
       </article>;

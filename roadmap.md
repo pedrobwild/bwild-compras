@@ -1,10 +1,13 @@
 # Pagamentos
-- [ ] Implementar dados de pagamento, diálogo de passagem, fila Pagamentos, migração e testes: aguardando aprovação do plano.
+- [x] Implementar dados de pagamento, diálogo compartilhado, fila Pagamentos, migração aplicada, documentação e testes; 116 testes automáticos passaram e testes transacionais de banco não deixaram alterações.
+- [x] Conferir fila e diálogo com dados simulados em 320, 414, 1280 e 1536 px, copiar link, abrir boleto e bloquear passagem vazia, sem transbordamento.
+- [ ] Validar solicitação aprovada → pagamento → fila → edição → histórico com sessão real: o Supabase externo não permite emitir sessão de teste por aqui.
+- [ ] Publicar: aguardando autorização; não publicar automaticamente.
 
 # Acesso ao Bwild Compras
 - [x] Remover cadastro público e validar os dois domínios no Novo usuário; 89 testes passaram, incluindo login existente e recuperação.
 - [x] Preparar a migração de restrição de novos cadastros em docs/sql, sem alterar usuários existentes, tabelas ou RLS; gatilho testado em PostgreSQL isolado, incluindo reexecução e preservação do gatilho de perfis.
-- [ ] Consultar contagens de usuários e aplicar a migração: bloqueado pela ausência de acesso ao banco externo; a plataforma também impede gravar diretamente em supabase/migrations sem conexão.
+- [x] Consultar contagens de usuários e aplicar a migração: concluído em 24/11/2026 após conectar o Supabase; 12 usuários e nenhum fora dos domínios permitidos, conforme docs/BACKEND.md e conferência registrada na conversa.
 - [x] Documentar a regra e conferir login e recuperação de senha em 320, 414 e 1280 px; sem erros ou transbordamento. Tela Admin testada com banco simulado, sem criar usuários reais.
 
 # Ordenação de compras
